@@ -1,5 +1,9 @@
+mod connection;
 mod game;
-mod lobby;
+mod games;
+mod master;
+mod proto;
+mod tuning;
 
 use clap::Clap;
 use tokio::runtime::Runtime;
@@ -18,9 +22,9 @@ struct CliArgs {
 
 fn main() {
     tracing_subscriber::fmt::init();
-    let opts = CliArgs::parse();
+    let args = CliArgs::parse();
     match Runtime::new() {
-        Ok(rt) => rt.block_on(async move { lobby::start(opts).await }),
-        Err(x) => error!("cannot create tokio runtime -> {}", x),
+        Ok(rt) => rt.block_on(async move { master::start(args).await }),
+        Err(x) => error!("Cannot create tokio runtime: {}", x),
     };
 }
