@@ -16,7 +16,7 @@ impl game::Builder for Builder {
         "roshambo"
     }
     async fn description(&self) -> &str {
-        "Rock Papers Scissors"
+        "# Rock Papers Scissors"
     }
     async fn gen_instance(
         &self,

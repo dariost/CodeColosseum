@@ -24,7 +24,8 @@ pub(crate) trait Instance: Send + Sync {}
 pub(crate) trait Bot: Send + Sync {}
 
 pub(crate) enum Command {
-    List(oneshot::Sender<Vec<String>>),
+    GetList(oneshot::Sender<Vec<String>>),
+    GetDescription(String, oneshot::Sender<Option<String>>),
 }
 
 macro_rules! send {
@@ -45,8 +46,18 @@ pub(crate) async fn start() -> mpsc::Sender<Command> {
         }
         while let Some(cmd) = rx.recv().await {
             match cmd {
-                Command::List(tx) => {
+                Command::GetList(tx) => {
                     send!(tx, games.keys().map(|x| x.clone()).collect());
+                }
+                Command::GetDescription(name, tx) => {
+                    send!(
+                        tx,
+                        if let Some(game) = games.get(&name) {
+                            Some(game.description().await.to_string())
+                        } else {
+                            None
+                        }
+                    );
                 }
             }
         }
