@@ -1,7 +1,9 @@
+use crate::game;
 use crate::master::Services;
 use crate::proto::{self, Reply, Request};
 use futures_util::{SinkExt, StreamExt};
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::sync::oneshot;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::tungstenite::Error as TsError;
 use tokio_tungstenite::WebSocketStream;
@@ -23,6 +25,22 @@ macro_rules! reunite {
                 return;
             }
         };
+    };
+}
+
+macro_rules! send {
+    ($out:expr, $reply:expr) => {
+        let msg = match Reply::forge(&$reply) {
+            Ok(x) => x,
+            Err(x) => {
+                error!("Cannot forge reply: {}", x);
+                break;
+            }
+        };
+        if let Err(x) = $out.send(Message::Text(msg)).await {
+            warn!("Cannot send reply: {}", x);
+            break;
+        }
     };
 }
 
@@ -55,7 +73,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         }
                     }
                     Ok(_) => warn!("Wrong message while handshaking"),
-                    Err(x) => warn!("Invalid message from client: {}", x),
+                    Err(x) => warn!("Invalid request from client: {}", x),
                 },
                 Err(x) => warn!("Connection error: {}", x),
                 _ => continue,
@@ -68,7 +86,65 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
 
     async fn main(mut self) {
         let (mut wsout, mut wsin) = self.ws.split();
-        // TODO: everything
+        loop {
+            let msg = match wsin.next().await {
+                Some(Ok(Message::Text(x))) => x,
+                Some(Ok(_)) => continue,
+                Some(Err(x)) => {
+                    warn!("Connection error: {}", x);
+                    break;
+                }
+                None => break,
+            };
+            let req = match Request::parse(&msg) {
+                Ok(x) => x,
+                Err(x) => {
+                    warn!("Invalid request from client: {}", x);
+                    break;
+                }
+            };
+            match req {
+                Request::GameList => {
+                    let (tx, rx) = oneshot::channel();
+                    if let Err(_) = self.srv.game.send(game::Command::GetList(tx)).await {
+                        error!("Cannot forward request to game::Command::GetList");
+                        break;
+                    }
+                    let games = match rx.await {
+                        Ok(x) => x,
+                        Err(x) => {
+                            error!("Cannot get reply from game::Command::GetList: {}", x);
+                            break;
+                        }
+                    };
+                    send!(wsout, Reply::GameList { games });
+                }
+                Request::GameDescription { name } => {
+                    let (tx, rx) = oneshot::channel();
+                    if let Err(_) = self
+                        .srv
+                        .game
+                        .send(game::Command::GetDescription(tx, name))
+                        .await
+                    {
+                        error!("Cannot forward request to game::Command::GetDescription");
+                        break;
+                    }
+                    let description = match rx.await {
+                        Ok(x) => x,
+                        Err(x) => {
+                            error!("Cannot get reply from game::Command::GetDescription: {}", x);
+                            break;
+                        }
+                    };
+                    send!(wsout, Reply::GameDescription { description });
+                }
+                _ => {
+                    warn!("Request not valid for current state: {:?}", req);
+                    break;
+                }
+            };
+        }
         reunite!(self.ws, wsin, wsout);
         return self.stop().await;
     }

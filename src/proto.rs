@@ -3,14 +3,14 @@ use serde::{Deserialize, Serialize};
 pub(crate) const MAGIC: &str = "coco";
 pub(crate) const VERSION: u64 = 1;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum Request {
     Handshake { magic: String, version: u64 },
     GameList,
     GameDescription { name: String },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum Reply {
     Handshake { magic: String, version: u64 },
     GameList { games: Vec<String> },
