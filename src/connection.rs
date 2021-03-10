@@ -1,6 +1,6 @@
-use crate::game;
 use crate::master::Services;
 use crate::proto::{self, Reply, Request};
+use crate::{game, lobby};
 use futures_util::{SinkExt, StreamExt};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::oneshot;
@@ -138,6 +138,21 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         }
                     };
                     send!(wsout, Reply::GameDescription { description });
+                }
+                Request::LobbyList => {
+                    let (tx, rx) = oneshot::channel();
+                    if let Err(_) = self.srv.lobby.send(lobby::Command::GetList(tx)).await {
+                        error!("Cannot forward request to lobby::Command::GetList");
+                        break;
+                    }
+                    let info = match rx.await {
+                        Ok(x) => x,
+                        Err(x) => {
+                            error!("Cannot get reply from lobby::Command::GetList: {}", x);
+                            break;
+                        }
+                    };
+                    send!(wsout, Reply::LobbyList { info });
                 }
                 _ => {
                     warn!("Request not valid for current state: {:?}", req);

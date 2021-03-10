@@ -25,6 +25,7 @@ pub(crate) trait Instance: Send + Sync {}
 #[async_trait]
 pub(crate) trait Bot: Send + Sync {}
 
+#[derive(Debug)]
 pub(crate) enum Command {
     GetList(oneshot::Sender<Vec<String>>),
     GetDescription(oneshot::Sender<Option<String>>, String),
@@ -38,7 +39,6 @@ macro_rules! send {
     };
 }
 
-#[instrument(name = "games_manager")]
 pub(crate) async fn start() -> mpsc::Sender<Command> {
     let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
     spawn(async move {

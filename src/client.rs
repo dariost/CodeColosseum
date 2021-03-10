@@ -29,7 +29,8 @@ struct CliArgs {
 enum Command {
     #[clap(about = "List available games")]
     List(ListCommand),
-    Lobby,
+    #[clap(about = "Show games in lobby")]
+    Lobby(LobbyCommand),
     New,
 }
 
@@ -44,6 +45,7 @@ impl Command {
     {
         match self {
             Command::List(cmd) => cmd.run(wsout, wsin).await,
+            Command::Lobby(cmd) => cmd.run(wsout, wsin).await,
             _ => todo!(),
         }
     }
@@ -93,6 +95,49 @@ impl ListCommand {
                             description: Some(text),
                         }) => {
                             println!("{}", text);
+                            break Ok(());
+                        }
+                        Ok(_) => return Err(format!("Server returned the wrong reply")),
+                        Err(x) => return Err(format!("Could not parse server reply: {}", x)),
+                    },
+                    Err(x) => break Err(format!("Connection lost while waiting for reply: {}", x)),
+                    Ok(_) => {}
+                }
+            } else {
+                break Err(format!("Connection lost while waiting for reply"));
+            }
+        }
+    }
+}
+
+#[derive(Clap, Debug)]
+struct LobbyCommand {}
+
+impl LobbyCommand {
+    async fn run<T: Sink<Message> + Unpin, U: Stream<Item = Result<Message, TsError>> + Unpin>(
+        self,
+        wsout: &mut T,
+        wsin: &mut U,
+    ) -> Result<(), String>
+    where
+        <T as Sink<Message>>::Error: Display,
+    {
+        let request = Request::LobbyList;
+        let request = match Request::forge(&request) {
+            Ok(x) => Message::Text(x),
+            Err(x) => return Err(format!("Cannot forge request: {}", x)),
+        };
+        if let Err(x) = wsout.send(request).await {
+            return Err(format!("Cannot send request: {}", x));
+        };
+        loop {
+            if let Some(msg) = wsin.next().await {
+                match msg {
+                    Ok(Message::Text(x)) => match Reply::parse(&x) {
+                        Ok(Reply::LobbyList { info }) => {
+                            for game in info {
+                                println!("{:?}", game);
+                            }
                             break Ok(());
                         }
                         Ok(_) => return Err(format!("Server returned the wrong reply")),

@@ -60,7 +60,7 @@ pub(crate) struct GameParams {
     pub(crate) timeout: Option<f64>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub(crate) struct MatchInfo {
     pub(crate) players: usize,
     pub(crate) bots: usize,

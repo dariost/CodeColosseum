@@ -1,5 +1,5 @@
 use crate::connection::Client;
-use crate::game;
+use crate::{game, lobby};
 use rand::rngs::{OsRng, StdRng};
 use rand::SeedableRng;
 use std::error::Error;
@@ -23,6 +23,7 @@ use {
 #[derive(Clone, Debug)]
 pub(crate) struct Services {
     pub(crate) game: mpsc::Sender<game::Command>,
+    pub(crate) lobby: mpsc::Sender<lobby::Command>,
 }
 
 async fn handle_raw_socket<T: AsyncRead + AsyncWrite + Unpin>(
@@ -97,16 +98,17 @@ async fn uds_listener(args: crate::CliArgs, services: Services) -> Result<(), Bo
 }
 
 pub(crate) async fn start(args: crate::CliArgs) {
-    let mut rng = match StdRng::from_rng(OsRng) {
+    let rng = match StdRng::from_rng(OsRng) {
         Ok(x) => x,
         Err(x) => {
             error!("Cannot obtain randomness source: {}", x);
             return;
         }
     };
-    info!("Random ID: {}", crate::lobby::gen_random_id(&mut rng));
+    let srv_game = game::start().await;
     let services = Services {
-        game: game::start().await,
+        game: srv_game.clone(),
+        lobby: lobby::start(rng, srv_game).await,
     };
     #[cfg(unix)]
     let result = if args.unix_domain_socket {
