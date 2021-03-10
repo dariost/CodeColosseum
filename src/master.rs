@@ -1,5 +1,7 @@
 use crate::connection::Client;
 use crate::game;
+use rand::rngs::{OsRng, StdRng};
+use rand::SeedableRng;
 use std::error::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpListener;
@@ -95,6 +97,14 @@ async fn uds_listener(args: crate::CliArgs, services: Services) -> Result<(), Bo
 }
 
 pub(crate) async fn start(args: crate::CliArgs) {
+    let mut rng = match StdRng::from_rng(OsRng) {
+        Ok(x) => x,
+        Err(x) => {
+            error!("Cannot obtain randomness source: {}", x);
+            return;
+        }
+    };
+    info!("Random ID: {}", crate::lobby::gen_random_id(&mut rng));
     let services = Services {
         game: game::start().await,
     };

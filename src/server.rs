@@ -1,6 +1,7 @@
 mod connection;
 mod game;
 mod games;
+mod lobby;
 mod master;
 mod proto;
 mod tuning;

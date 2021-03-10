@@ -1,4 +1,5 @@
 use crate::games;
+pub(crate) use crate::proto::GameParams as Params;
 use crate::tuning::QUEUE_BUFFER;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -12,6 +13,7 @@ pub(crate) trait Builder: Send + Sync {
     async fn description(&self) -> &str;
     async fn gen_instance(
         &self,
+        param: &mut Params,
         args: HashMap<String, String>,
     ) -> Result<Box<dyn Instance>, String>;
     async fn gen_bot(&self) -> Box<dyn Bot>;

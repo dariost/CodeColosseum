@@ -20,6 +20,7 @@ impl game::Builder for Builder {
     }
     async fn gen_instance(
         &self,
+        _param: &mut game::Params,
         _args: HashMap<String, String>,
     ) -> Result<Box<dyn game::Instance>, String> {
         todo!()
