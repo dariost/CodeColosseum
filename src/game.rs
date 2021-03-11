@@ -3,12 +3,13 @@ pub(crate) use crate::proto::GameParams as Params;
 use crate::tuning::QUEUE_BUFFER;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use tokio::spawn;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{instrument, warn};
+use tracing::warn;
 
 #[async_trait]
-pub(crate) trait Builder: Send + Sync {
+pub(crate) trait Builder: Send + Sync + Debug {
     async fn name(&self) -> &str;
     async fn description(&self) -> &str;
     async fn gen_instance(
@@ -20,15 +21,21 @@ pub(crate) trait Builder: Send + Sync {
 }
 
 #[async_trait]
-pub(crate) trait Instance: Send + Sync {}
+pub(crate) trait Instance: Send + Sync + Debug {}
 
 #[async_trait]
-pub(crate) trait Bot: Send + Sync {}
+pub(crate) trait Bot: Send + Sync + Debug {}
 
 #[derive(Debug)]
 pub(crate) enum Command {
     GetList(oneshot::Sender<Vec<String>>),
     GetDescription(oneshot::Sender<Option<String>>, String),
+    NewGame(
+        oneshot::Sender<Result<(Box<dyn Instance>, Params), String>>,
+        String,
+        Params,
+        HashMap<String, String>,
+    ),
 }
 
 macro_rules! send {
@@ -52,14 +59,23 @@ pub(crate) async fn start() -> mpsc::Sender<Command> {
                     send!(tx, games.keys().map(|x| x.clone()).collect());
                 }
                 Command::GetDescription(tx, name) => {
-                    send!(
-                        tx,
-                        if let Some(game) = games.get(&name) {
-                            Some(game.description().await.to_string())
-                        } else {
-                            None
+                    let result = if let Some(game) = games.get(&name) {
+                        Some(game.description().await.to_string())
+                    } else {
+                        None
+                    };
+                    send!(tx, result);
+                }
+                Command::NewGame(tx, name, mut params, args) => {
+                    let result = if let Some(game) = games.get(&name) {
+                        match game.gen_instance(&mut params, args).await {
+                            Ok(x) => Ok((x, params)),
+                            Err(x) => Err(format!("Cannot create game: {}", x)),
                         }
-                    );
+                    } else {
+                        Err(format!("Game not found"))
+                    };
+                    send!(tx, result);
                 }
             }
         }

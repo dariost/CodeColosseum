@@ -44,6 +44,37 @@ macro_rules! send {
     };
 }
 
+macro_rules! oneshot_reply {
+    ($srv:expr, $cmd:expr) => {{
+        let (tx, rx) = oneshot::channel();
+        if let Err(_) = $srv.send($cmd(tx)).await {
+            error!("Cannot forward request to {}", stringify!($cmd));
+            break;
+        }
+        match rx.await {
+            Ok(x) => x,
+            Err(x) => {
+                error!("Cannot get reply from {}: {}", stringify!($cmd), x);
+                break;
+            }
+        }
+    }};
+    ($srv:expr, $cmd:expr, $($arg:tt)+) => {{
+        let (tx, rx) = oneshot::channel();
+        if let Err(_) = $srv.send($cmd(tx, $($arg)+)).await {
+            error!("Cannot forward request to {}", stringify!($cmd));
+            break;
+        }
+        match rx.await {
+            Ok(x) => x,
+            Err(x) => {
+                error!("Cannot get reply from {}: {}", stringify!($cmd), x);
+                break;
+            }
+        }
+    }};
+}
+
 impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
     pub(crate) fn new(ws: WebSocketStream<T>, addr: String, srv: Services) -> Client<T> {
         Client { ws, addr, srv }
@@ -105,54 +136,35 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
             };
             match req {
                 Request::GameList => {
-                    let (tx, rx) = oneshot::channel();
-                    if let Err(_) = self.srv.game.send(game::Command::GetList(tx)).await {
-                        error!("Cannot forward request to game::Command::GetList");
-                        break;
-                    }
-                    let games = match rx.await {
-                        Ok(x) => x,
-                        Err(x) => {
-                            error!("Cannot get reply from game::Command::GetList: {}", x);
-                            break;
-                        }
-                    };
+                    let games = oneshot_reply!(self.srv.game, game::Command::GetList);
                     send!(wsout, Reply::GameList { games });
                 }
                 Request::GameDescription { name } => {
-                    let (tx, rx) = oneshot::channel();
-                    if let Err(_) = self
-                        .srv
-                        .game
-                        .send(game::Command::GetDescription(tx, name))
-                        .await
-                    {
-                        error!("Cannot forward request to game::Command::GetDescription");
-                        break;
-                    }
-                    let description = match rx.await {
-                        Ok(x) => x,
-                        Err(x) => {
-                            error!("Cannot get reply from game::Command::GetDescription: {}", x);
-                            break;
-                        }
-                    };
+                    let description =
+                        oneshot_reply!(self.srv.game, game::Command::GetDescription, name);
                     send!(wsout, Reply::GameDescription { description });
                 }
                 Request::LobbyList => {
-                    let (tx, rx) = oneshot::channel();
-                    if let Err(_) = self.srv.lobby.send(lobby::Command::GetList(tx)).await {
-                        error!("Cannot forward request to lobby::Command::GetList");
-                        break;
-                    }
-                    let info = match rx.await {
-                        Ok(x) => x,
-                        Err(x) => {
-                            error!("Cannot get reply from lobby::Command::GetList: {}", x);
-                            break;
-                        }
-                    };
+                    let info = oneshot_reply!(self.srv.lobby, lobby::Command::GetList);
                     send!(wsout, Reply::LobbyList { info });
+                }
+                Request::GameNew {
+                    name,
+                    game,
+                    params,
+                    args,
+                    hidden,
+                } => {
+                    let id = oneshot_reply!(
+                        self.srv.lobby,
+                        lobby::Command::NewGame,
+                        name,
+                        game,
+                        params,
+                        args,
+                        hidden
+                    );
+                    send!(wsout, Reply::GameNew { id });
                 }
                 _ => {
                     warn!("Request not valid for current state: {:?}", req);

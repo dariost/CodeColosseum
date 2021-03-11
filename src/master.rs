@@ -1,7 +1,9 @@
 use crate::connection::Client;
+use crate::tuning::{GAMENAME_REGEX, USERNAME_REGEX};
 use crate::{game, lobby};
 use rand::rngs::{OsRng, StdRng};
 use rand::SeedableRng;
+use regex::Regex;
 use std::error::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpListener;
@@ -97,18 +99,26 @@ async fn uds_listener(args: crate::CliArgs, services: Services) -> Result<(), Bo
     }
 }
 
-pub(crate) async fn start(args: crate::CliArgs) {
-    let rng = match StdRng::from_rng(OsRng) {
-        Ok(x) => x,
-        Err(x) => {
-            error!("Cannot obtain randomness source: {}", x);
-            return;
+macro_rules! init {
+    ($obj:expr) => {{
+        match $obj {
+            Ok(x) => x,
+            Err(x) => {
+                error!("Cannot initialize resource: {}", x);
+                return;
+            }
         }
-    };
+    }};
+}
+
+pub(crate) async fn start(args: crate::CliArgs) {
+    let rng = init!(StdRng::from_rng(OsRng));
+    let username_regex = init!(Regex::new(USERNAME_REGEX));
+    let gamename_regex = init!(Regex::new(GAMENAME_REGEX));
     let srv_game = game::start().await;
     let services = Services {
         game: srv_game.clone(),
-        lobby: lobby::start(rng, srv_game).await,
+        lobby: lobby::start(rng, username_regex, gamename_regex, srv_game).await,
     };
     #[cfg(unix)]
     let result = if args.unix_domain_socket {

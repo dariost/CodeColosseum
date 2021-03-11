@@ -1,10 +1,11 @@
 mod proto;
 
-use crate::proto::{Reply, Request};
+use crate::proto::{GameParams, Reply, Request};
 use clap::Clap;
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
 use futures_util::{SinkExt, StreamExt};
+use std::collections::HashMap;
 use std::fmt::Display;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::connect_async;
@@ -31,7 +32,8 @@ enum Command {
     List(ListCommand),
     #[clap(about = "Show games in lobby")]
     Lobby(LobbyCommand),
-    New,
+    #[clap(about = "Create new game")]
+    New(NewCommand),
 }
 
 impl Command {
@@ -46,7 +48,7 @@ impl Command {
         match self {
             Command::List(cmd) => cmd.run(wsout, wsin).await,
             Command::Lobby(cmd) => cmd.run(wsout, wsin).await,
-            _ => todo!(),
+            Command::New(cmd) => cmd.run(wsout, wsin).await,
         }
     }
 }
@@ -105,24 +107,23 @@ impl ListCommand {
         } else {
             Request::GameList
         };
-        match oneshot_request(request, wsout, wsin).await {
-            Ok(Reply::GameList { games }) => {
+        match oneshot_request(request, wsout, wsin).await? {
+            Reply::GameList { games } => {
                 for game in games {
                     println!("- {}", game);
                 }
                 Ok(())
             }
-            Ok(Reply::GameDescription { description: None }) => {
+            Reply::GameDescription { description: None } => {
                 Err(format!("Requested game could not be found"))
             }
-            Ok(Reply::GameDescription {
+            Reply::GameDescription {
                 description: Some(text),
-            }) => {
+            } => {
                 println!("{}", text);
                 Ok(())
             }
-            Ok(_) => Err(format!("Server returned the wrong reply")),
-            Err(x) => Err(x),
+            _ => Err(format!("Server returned the wrong reply")),
         }
     }
 }
@@ -140,15 +141,83 @@ impl LobbyCommand {
         <T as Sink<Message>>::Error: Display,
     {
         let request = Request::LobbyList;
-        match oneshot_request(request, wsout, wsin).await {
-            Ok(Reply::LobbyList { info }) => {
+        match oneshot_request(request, wsout, wsin).await? {
+            Reply::LobbyList { info } => {
                 for game in info {
                     println!("{:?}", game);
                 }
                 Ok(())
             }
-            Ok(_) => Err(format!("Server returned the wrong reply")),
-            Err(x) => Err(x),
+            _ => Err(format!("Server returned the wrong reply")),
+        }
+    }
+}
+
+#[derive(Clap, Debug)]
+struct NewCommand {
+    #[clap(about = "Game to play")]
+    game: String,
+    #[clap(about = "Name for the lobby")]
+    name: Option<String>,
+    #[clap(short('n'), long, about = "Create an hidden game")]
+    hidden: bool,
+    #[clap(short, long, about = "Number of players")]
+    players: Option<usize>,
+    #[clap(short, long, about = "Number of server bots", default_value = "0")]
+    bots: usize,
+    #[clap(short, long, about = "Timeout for player actions")]
+    timeout: Option<f64>,
+    #[clap(
+        short,
+        long("arg"),
+        multiple = true,
+        number_of_values = 1,
+        about = "Additional arguments, can be specified multiple times with -a arg=val"
+    )]
+    args: Vec<String>,
+}
+
+impl NewCommand {
+    async fn run<T: Sink<Message> + Unpin, U: Stream<Item = Result<Message, TsError>> + Unpin>(
+        self,
+        wsout: &mut T,
+        wsin: &mut U,
+    ) -> Result<(), String>
+    where
+        <T as Sink<Message>>::Error: Display,
+    {
+        let mut args = HashMap::new();
+        for arg in self.args {
+            let arg: Vec<_> = arg.split("=").collect();
+            if arg.len() < 2 {
+                return Err(format!("{} is not a valid argument", arg.join("")));
+            }
+            args.insert(arg[0].into(), arg[1..].join(""));
+        }
+        let name = self
+            .name
+            .unwrap_or_else(|| format!("{}'s game", whoami::username()));
+        let request = Request::GameNew {
+            game: self.game,
+            name: name,
+            params: GameParams {
+                players: self.players,
+                bots: self.bots,
+                timeout: self.timeout,
+            },
+            args: args,
+            hidden: self.hidden,
+        };
+        match oneshot_request(request, wsout, wsin).await? {
+            Reply::GameNew { id: Ok(id) } => {
+                println!("Created new game with id {}", id);
+                Ok(())
+            }
+            Reply::GameNew { id: Err(x) } => {
+                error!("Cannot create new game: {}", x);
+                Ok(())
+            }
+            _ => Err(format!("Server returned the wrong reply")),
         }
     }
 }

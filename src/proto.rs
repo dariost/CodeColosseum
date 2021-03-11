@@ -16,6 +16,7 @@ pub(crate) enum Request {
     },
     GameNew {
         name: String,
+        game: String,
         params: GameParams,
         args: HashMap<String, String>,
         hidden: bool,

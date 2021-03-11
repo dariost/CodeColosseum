@@ -1,7 +1,9 @@
+use super::instance::Instance;
 use crate::game;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub(crate) struct Builder {}
 
 impl Builder {
@@ -20,10 +22,12 @@ impl game::Builder for Builder {
     }
     async fn gen_instance(
         &self,
-        _param: &mut game::Params,
+        param: &mut game::Params,
         _args: HashMap<String, String>,
     ) -> Result<Box<dyn game::Instance>, String> {
-        todo!()
+        param.players = Some(2);
+        param.timeout = Some(1.0);
+        Ok(Box::new(Instance {}))
     }
     async fn gen_bot(&self) -> Box<dyn game::Bot> {
         todo!()

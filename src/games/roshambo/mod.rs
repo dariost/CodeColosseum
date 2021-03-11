@@ -1,4 +1,5 @@
 mod builder;
+mod instance;
 
 use crate::game::Builder;
 
