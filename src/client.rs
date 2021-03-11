@@ -51,6 +51,40 @@ impl Command {
     }
 }
 
+async fn oneshot_request<
+    T: Sink<Message> + Unpin,
+    U: Stream<Item = Result<Message, TsError>> + Unpin,
+>(
+    request: Request,
+    wsout: &mut T,
+    wsin: &mut U,
+) -> Result<Reply, String>
+where
+    <T as Sink<Message>>::Error: Display,
+{
+    let request = match Request::forge(&request) {
+        Ok(x) => Message::Text(x),
+        Err(x) => return Err(format!("Cannot forge request: {}", x)),
+    };
+    if let Err(x) = wsout.send(request).await {
+        return Err(format!("Cannot send request: {}", x));
+    };
+    loop {
+        if let Some(msg) = wsin.next().await {
+            match msg {
+                Ok(Message::Text(x)) => match Reply::parse(&x) {
+                    Ok(x) => break Ok(x),
+                    Err(x) => break Err(format!("Could not parse server reply: {}", x)),
+                },
+                Err(x) => break Err(format!("Connection lost while waiting for reply: {}", x)),
+                Ok(_) => {}
+            }
+        } else {
+            break Err(format!("Connection lost while waiting for reply"));
+        }
+    }
+}
+
 #[derive(Clap, Debug)]
 struct ListCommand {
     #[clap(about = "Show one game with its description")]
@@ -71,41 +105,24 @@ impl ListCommand {
         } else {
             Request::GameList
         };
-        let request = match Request::forge(&request) {
-            Ok(x) => Message::Text(x),
-            Err(x) => return Err(format!("Cannot forge request: {}", x)),
-        };
-        if let Err(x) = wsout.send(request).await {
-            return Err(format!("Cannot send request: {}", x));
-        };
-        loop {
-            if let Some(msg) = wsin.next().await {
-                match msg {
-                    Ok(Message::Text(x)) => match Reply::parse(&x) {
-                        Ok(Reply::GameList { games }) => {
-                            for game in games {
-                                println!("- {}", game);
-                            }
-                            break Ok(());
-                        }
-                        Ok(Reply::GameDescription { description: None }) => {
-                            break Err(format!("Requested game could not be found"))
-                        }
-                        Ok(Reply::GameDescription {
-                            description: Some(text),
-                        }) => {
-                            println!("{}", text);
-                            break Ok(());
-                        }
-                        Ok(_) => return Err(format!("Server returned the wrong reply")),
-                        Err(x) => return Err(format!("Could not parse server reply: {}", x)),
-                    },
-                    Err(x) => break Err(format!("Connection lost while waiting for reply: {}", x)),
-                    Ok(_) => {}
+        match oneshot_request(request, wsout, wsin).await {
+            Ok(Reply::GameList { games }) => {
+                for game in games {
+                    println!("- {}", game);
                 }
-            } else {
-                break Err(format!("Connection lost while waiting for reply"));
+                Ok(())
             }
+            Ok(Reply::GameDescription { description: None }) => {
+                Err(format!("Requested game could not be found"))
+            }
+            Ok(Reply::GameDescription {
+                description: Some(text),
+            }) => {
+                println!("{}", text);
+                Ok(())
+            }
+            Ok(_) => Err(format!("Server returned the wrong reply")),
+            Err(x) => Err(x),
         }
     }
 }
@@ -123,32 +140,15 @@ impl LobbyCommand {
         <T as Sink<Message>>::Error: Display,
     {
         let request = Request::LobbyList;
-        let request = match Request::forge(&request) {
-            Ok(x) => Message::Text(x),
-            Err(x) => return Err(format!("Cannot forge request: {}", x)),
-        };
-        if let Err(x) = wsout.send(request).await {
-            return Err(format!("Cannot send request: {}", x));
-        };
-        loop {
-            if let Some(msg) = wsin.next().await {
-                match msg {
-                    Ok(Message::Text(x)) => match Reply::parse(&x) {
-                        Ok(Reply::LobbyList { info }) => {
-                            for game in info {
-                                println!("{:?}", game);
-                            }
-                            break Ok(());
-                        }
-                        Ok(_) => return Err(format!("Server returned the wrong reply")),
-                        Err(x) => return Err(format!("Could not parse server reply: {}", x)),
-                    },
-                    Err(x) => break Err(format!("Connection lost while waiting for reply: {}", x)),
-                    Ok(_) => {}
+        match oneshot_request(request, wsout, wsin).await {
+            Ok(Reply::LobbyList { info }) => {
+                for game in info {
+                    println!("{:?}", game);
                 }
-            } else {
-                break Err(format!("Connection lost while waiting for reply"));
+                Ok(())
             }
+            Ok(_) => Err(format!("Server returned the wrong reply")),
+            Err(x) => Err(x),
         }
     }
 }
