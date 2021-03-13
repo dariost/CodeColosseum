@@ -1,5 +1,4 @@
 pub(crate) const QUEUE_BUFFER: usize = 64;
-pub(crate) const RANDOM_ID_SIZE: usize = 10;
 pub(crate) const USERNAME_REGEX: &str = r"^[[:graph:]]{1,16}$";
 pub(crate) const GAMENAME_REGEX: &str = r"^[[:print:]]{1,24}$";
 pub(crate) const MAX_PLAYERS: usize = 100;

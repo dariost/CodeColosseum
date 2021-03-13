@@ -1,9 +1,14 @@
 use crate::master::Services;
 use crate::proto::{self, Reply, Request};
+use crate::tuning::QUEUE_BUFFER;
 use crate::{game, lobby};
+use futures_util::sink::Sink;
+use futures_util::stream::Stream;
 use futures_util::{SinkExt, StreamExt};
+use std::fmt::Display;
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::sync::oneshot;
+use tokio::select;
+use tokio::sync::{mpsc, oneshot};
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::tungstenite::Error as TsError;
 use tokio_tungstenite::WebSocketStream;
@@ -29,7 +34,7 @@ macro_rules! reunite {
 }
 
 macro_rules! send {
-    ($out:expr, $reply:expr) => {
+    ($out:expr, $reply:expr) => {{
         let msg = match Reply::forge(&$reply) {
             Ok(x) => x,
             Err(x) => {
@@ -41,7 +46,7 @@ macro_rules! send {
             warn!("Cannot send reply: {}", x);
             break;
         }
-    };
+    }};
 }
 
 macro_rules! oneshot_reply {
@@ -148,6 +153,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                     let info = oneshot_reply!(self.srv.lobby, lobby::Command::GetList);
                     send!(wsout, Reply::LobbyList { info });
                 }
+                Request::LobbySubscribe => {
+                    if let Err(()) = Self::lobby(&mut wsin, &mut wsout, &self.srv).await {
+                        break;
+                    }
+                }
                 Request::GameNew {
                     name,
                     game,
@@ -174,6 +184,67 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
         }
         reunite!(self.ws, wsin, wsout);
         return self.stop().await;
+    }
+
+    async fn lobby<X: Sink<Message> + Unpin, Y: Stream<Item = Result<Message, TsError>> + Unpin>(
+        wsin: &mut Y,
+        wsout: &mut X,
+        srv: &Services,
+    ) -> Result<(), ()>
+    where
+        <X as Sink<Message>>::Error: Display,
+    {
+        let (otx, orx) = oneshot::channel();
+        let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
+        srv.lobby
+            .send(lobby::Command::Subscribe(otx, tx))
+            .await
+            .map_err(|x| error!("Lobby is unreachable: {}", x))?;
+        let id = orx.await.map_err(|_| error!("Lobby did not respond"))?;
+        loop {
+            select! {
+                msg = wsin.next() => {
+                    let msg = match msg {
+                        Some(Ok(Message::Text(x))) => x,
+                        Some(_) => continue,
+                        None => {
+                            srv.lobby.send(lobby::Command::Unsubscribe(id.clone())).await
+                               .map_err(|x| error!("Lobby is unreachable: {}", x))?;
+                            break;
+                        }
+                    };
+                    match Request::parse(&msg) {
+                        Ok(Request::LobbyUnsubscribe) => {
+                            srv.lobby.send(lobby::Command::Unsubscribe(id.clone())).await
+                               .map_err(|x| error!("Lobby is unreachable: {}", x))?;
+                        }
+                        Ok(x) => {
+                            warn!("Request not valid while in lobby: {:?}", x);
+                            break;
+                        }
+                        Err(x) => {
+                            warn!("Invalid request: {}", x);
+                            break;
+                        }
+                    };
+                }
+                msg = rx.recv() => { match msg {
+                    Some(lobby::Event::Subscribed(seed)) => send!(wsout, Reply::LobbySubscribed { seed }),
+                    Some(lobby::Event::New(info)) => send!(wsout, Reply::LobbyNew { info }),
+                    Some(lobby::Event::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
+                    Some(lobby::Event::Delete(id)) => send!(wsout, Reply::LobbyDelete { id }),
+                    Some(lobby::Event::Unsubscribed) => {
+                        send!(wsout, Reply::LobbyUnsubscribed);
+                        return Ok(());
+                    }
+                    None => {
+                        error!("Lobby is unreachable");
+                        break;
+                    }
+                }}
+            };
+        }
+        Err(())
     }
 
     async fn stop(mut self) {
