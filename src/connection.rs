@@ -1,6 +1,5 @@
 use crate::master::Services;
 use crate::proto::{self, Reply, Request};
-use crate::tuning::QUEUE_BUFFER;
 use crate::{game, lobby};
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
@@ -8,7 +7,8 @@ use futures_util::{SinkExt, StreamExt};
 use std::fmt::Display;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::select;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::broadcast::error::RecvError as BrRecvError;
+use tokio::sync::oneshot;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::tungstenite::Error as TsError;
 use tokio_tungstenite::WebSocketStream;
@@ -195,28 +195,35 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
         <X as Sink<Message>>::Error: Display,
     {
         let (otx, orx) = oneshot::channel();
-        let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
         srv.lobby
-            .send(lobby::Command::Subscribe(otx, tx))
+            .send(lobby::Command::Subscribe(otx))
             .await
             .map_err(|x| error!("Lobby is unreachable: {}", x))?;
-        let id = orx.await.map_err(|_| error!("Lobby did not respond"))?;
+        let (mut rx, seed) = orx.await.map_err(|_| error!("Lobby did not respond"))?;
+        match Reply::forge(&Reply::LobbySubscribed { seed }) {
+            Ok(msg) => {
+                if let Err(x) = wsout.send(Message::Text(msg)).await {
+                    warn!("Cannot send reply: {}", x);
+                    return Err(());
+                }
+            }
+            Err(x) => {
+                error!("Cannot forge reply: {}", x);
+                return Err(());
+            }
+        };
         loop {
             select! {
                 msg = wsin.next() => {
                     let msg = match msg {
                         Some(Ok(Message::Text(x))) => x,
                         Some(_) => continue,
-                        None => {
-                            srv.lobby.send(lobby::Command::Unsubscribe(id.clone())).await
-                               .map_err(|x| error!("Lobby is unreachable: {}", x))?;
-                            break;
-                        }
+                        None => break,
                     };
                     match Request::parse(&msg) {
                         Ok(Request::LobbyUnsubscribe) => {
-                            srv.lobby.send(lobby::Command::Unsubscribe(id.clone())).await
-                               .map_err(|x| error!("Lobby is unreachable: {}", x))?;
+                            send!(wsout, Reply::LobbyUnsubscribed);
+                            return Ok(());
                         }
                         Ok(x) => {
                             warn!("Request not valid while in lobby: {:?}", x);
@@ -229,16 +236,15 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                     };
                 }
                 msg = rx.recv() => { match msg {
-                    Some(lobby::Event::Subscribed(seed)) => send!(wsout, Reply::LobbySubscribed { seed }),
-                    Some(lobby::Event::New(info)) => send!(wsout, Reply::LobbyNew { info }),
-                    Some(lobby::Event::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
-                    Some(lobby::Event::Delete(id)) => send!(wsout, Reply::LobbyDelete { id }),
-                    Some(lobby::Event::Unsubscribed) => {
-                        send!(wsout, Reply::LobbyUnsubscribed);
-                        return Ok(());
-                    }
-                    None => {
+                    Ok(lobby::Event::New(info)) => send!(wsout, Reply::LobbyNew { info }),
+                    Ok(lobby::Event::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
+                    Ok(lobby::Event::Delete(id)) => send!(wsout, Reply::LobbyDelete { id }),
+                    Err(BrRecvError::Closed) => {
                         error!("Lobby is unreachable");
+                        break;
+                    }
+                    Err(BrRecvError::Lagged(x)) => {
+                        warn!("Client is {} updates behind: dropping", x);
                         break;
                     }
                 }}

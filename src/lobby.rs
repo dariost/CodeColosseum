@@ -7,9 +7,9 @@ use regex::Regex;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::time::UNIX_EPOCH;
 use tokio::spawn;
-use tokio::sync::{mpsc, oneshot};
-use tokio::time::Instant;
-use tracing::{error, info, warn};
+use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::time::{timeout_at, Duration, Instant};
+use tracing::{debug, error, info, warn};
 
 fn encode(id: u64) -> String {
     BASE32_DNSSEC.encode(&u64::to_ne_bytes(id))
@@ -58,17 +58,14 @@ pub(crate) enum Command {
         HashMap<String, String>,
         bool,
     ),
-    Subscribe(oneshot::Sender<String>, mpsc::Sender<Event>),
-    Unsubscribe(String),
+    Subscribe(oneshot::Sender<(broadcast::Receiver<Event>, Vec<MatchInfo>)>),
 }
 
 #[derive(Debug, Clone)]
 pub(crate) enum Event {
-    Subscribed(Vec<MatchInfo>),
     New(MatchInfo),
     Update(MatchInfo),
     Delete(String),
-    Unsubscribed,
 }
 
 #[derive(Debug)]
@@ -106,19 +103,11 @@ macro_rules! recv {
 }
 
 macro_rules! send_event {
-    ($listeners:expr, $event:expr) => {{
-        let mut tbr = BTreeSet::new();
-        let event = $event;
-        for (key, tx) in &$listeners {
-            if let Err(_) = tx.send(event.clone()).await {
-                tbr.insert(*key);
-            }
-        }
-        for key in tbr {
-            if $listeners.remove(&key).is_none() {
-                error!("BTreeSet consistency error");
-            }
-        }
+    ($sender:expr, $event:expr) => {{
+        match $sender.send($event).unwrap_or(0) {
+            1 => debug!("Sent event to 1 listener"),
+            n => debug!("Sent event to {} listeners", n),
+        };
     }};
 }
 
@@ -148,18 +137,23 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
             }
         };
         let time_base = Instant::now();
-        let get_time = || time_base.elapsed().as_secs() + time_sys_offset;
+        let get_unix_time = |t: Instant| (t - time_base).as_secs() + time_sys_offset;
         let mut matches: BTreeMap<u64, Match> = BTreeMap::new();
-        let mut listeners: BTreeMap<u64, mpsc::Sender<Event>> = BTreeMap::new();
-        let mut reaper: BTreeSet<(u64, u64)> = BTreeSet::new();
-        while let Some(cmd) = rx.recv().await {
+        let (event_tx, _) = broadcast::channel(BROADCAST_BUFFER);
+        let mut reaper: BTreeSet<(Instant, u64)> = BTreeSet::new();
+        loop {
+            let cmd = if let Some((t, _)) = reaper.iter().nth(0) {
+                timeout_at(*t, rx.recv()).await.ok()
+            } else {
+                Some(rx.recv().await)
+            };
             loop {
                 let mut must_remove = false;
                 let (time, id) = match reaper.iter().nth(0) {
                     Some((x, y)) => (*x, *y),
                     None => break,
                 };
-                if get_time() < time {
+                if Instant::now() < time {
                     break;
                 }
                 if let Some(info) = matches.get(&id) {
@@ -169,7 +163,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     let eid = encode(id);
                     info!("Reaping match {} for inactivity", eid);
                     match matches.remove(&id) {
-                        Some(m) if !m.hidden => send_event!(listeners, Event::Delete(eid)),
+                        Some(m) if !m.hidden => send_event!(event_tx, Event::Delete(eid)),
                         Some(_) => {}
                         None => error!("BTreeMap consistency error"),
                     };
@@ -178,29 +172,17 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     error!("BTreeSet consistency error");
                 }
             }
+            let cmd = match cmd {
+                Some(Some(x)) => x,
+                Some(None) => break,
+                None => continue,
+            };
             match cmd {
                 Command::GetList(tx) => {
                     send!(tx, matches_info!(matches));
                 }
-                Command::Subscribe(tx, sender) => {
-                    let id = gen_unique_id!(rng, listeners);
-                    if let Err(x) = sender.send(Event::Subscribed(matches_info!(matches))).await {
-                        error!("Subscriber channel closed prematurely: {}", x);
-                        continue;
-                    }
-                    listeners.insert(id, sender);
-                    send!(tx, encode(id));
-                }
-                Command::Unsubscribe(id) => {
-                    let did = decode!(&id);
-                    match listeners.remove(&did) {
-                        Some(tx) => {
-                            if let Err(x) = tx.send(Event::Unsubscribed).await {
-                                error!("Unsubscriber channel closed prematurely: {}", x);
-                            }
-                        }
-                        None => error!("Trying to unsubscribe a non-existent key: {}", id),
-                    }
+                Command::Subscribe(tx) => {
+                    send!(tx, (event_tx.subscribe(), matches_info!(matches)));
                 }
                 Command::NewGame(tx, name, gamename, params, args, hidden) => {
                     if matches.len() >= MAX_GAME_INSTANCES {
@@ -255,6 +237,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                         continue;
                     }
                     let id = gen_unique_id!(rng, matches);
+                    let expiry_time = Instant::now() + Duration::from_secs_f64(INSTANCE_LIFETIME);
                     let info = MatchInfo {
                         players: players,
                         bots: params.bots,
@@ -264,11 +247,11 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                         name: name,
                         game: gamename,
                         running: false,
-                        time: get_time() + INSTANCE_LIFETIME,
+                        time: get_unix_time(expiry_time),
                         connected: Vec::new(),
                         spectators: 0,
                     };
-                    reaper.insert((info.time, id));
+                    reaper.insert((expiry_time, id));
                     let data = Match {
                         info: info.clone(),
                         instance: instance,
@@ -276,7 +259,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     };
                     matches.insert(id, data);
                     if !hidden {
-                        send_event!(listeners, Event::New(info));
+                        send_event!(event_tx, Event::New(info));
                     }
                     send!(tx, Ok(encode(id)));
                 }

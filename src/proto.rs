@@ -29,10 +29,10 @@ pub(crate) enum Request {
         name: String,
     },
     LobbyLeaveMatch,
-    MatchSpectate {
+    SpectateJoinMatch {
         id: String,
     },
-    MatchLeave,
+    SpectateLeaveMatch,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -51,7 +51,11 @@ pub(crate) enum Reply {
     LobbyLeavedMatch,
     MatchStarted,
     MatchEnded,
-    MatchLeaved,
+    SpectateJoinedMatch { info: Result<MatchInfo, String> },
+    SpectateStarted,
+    SpectateSynced,
+    SpectateEnded,
+    SpectateLeaved,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

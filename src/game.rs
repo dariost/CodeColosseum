@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use tokio::spawn;
 use tokio::sync::{mpsc, oneshot};
-use tracing::warn;
+use tracing::{error, warn};
 
 #[async_trait]
 pub(crate) trait Builder: Send + Sync + Debug {
@@ -67,10 +67,27 @@ pub(crate) async fn start() -> mpsc::Sender<Command> {
                     send!(tx, result);
                 }
                 Command::NewGame(tx, name, mut params, args) => {
-                    let result = if let Some(game) = games.get(&name) {
-                        match game.gen_instance(&mut params, args).await {
-                            Ok(x) => Ok((x, params)),
-                            Err(x) => Err(format!("Cannot create game: {}", x)),
+                    let result = if let Some(game) = games.remove(&name) {
+                        match spawn(async move {
+                            let result = match game.gen_instance(&mut params, args).await {
+                                Ok(x) => Ok((x, params)),
+                                Err(x) => Err(format!("Cannot create game: {}", x)),
+                            };
+                            (result, game)
+                        })
+                        .await
+                        {
+                            Ok((result, game)) => {
+                                games.insert(name, game);
+                                result
+                            }
+                            Err(x) => {
+                                error!(
+                                    "Fatal error while generating instance of game \"{}\": {}",
+                                    name, x
+                                );
+                                Err(format!("Internal server error"))
+                            }
                         }
                     } else {
                         Err(format!("Game not found"))
