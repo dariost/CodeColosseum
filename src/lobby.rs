@@ -4,7 +4,7 @@ use crate::tuning::*;
 use data_encoding::BASE32_DNSSEC;
 use rand::Rng;
 use regex::Regex;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::time::UNIX_EPOCH;
 use tokio::spawn;
 use tokio::sync::{broadcast, mpsc, oneshot};
@@ -59,6 +59,13 @@ pub(crate) enum Command {
         bool,
     ),
     Subscribe(oneshot::Sender<(broadcast::Receiver<Event>, Vec<MatchInfo>)>),
+    JoinMatch(
+        oneshot::Sender<Result<MatchInfo, String>>,
+        String,
+        String,
+        mpsc::Sender<MatchEvent>,
+    ),
+    LeaveMatch(oneshot::Sender<Result<(), String>>, String, String),
 }
 
 #[derive(Debug, Clone)]
@@ -68,11 +75,19 @@ pub(crate) enum Event {
     Delete(String),
 }
 
+#[derive(Debug, Clone)]
+pub(crate) enum MatchEvent {
+    Update(MatchInfo),
+    // Started(todo!()),
+}
+
 #[derive(Debug)]
 struct Match {
     info: MatchInfo,
     instance: Box<dyn game::Instance>,
     hidden: bool,
+    expiration: Instant,
+    players: BTreeMap<String, mpsc::Sender<MatchEvent>>,
 }
 
 macro_rules! send {
@@ -108,6 +123,28 @@ macro_rules! send_event {
             1 => debug!("Sent event to 1 listener"),
             n => debug!("Sent event to {} listeners", n),
         };
+    }};
+}
+
+macro_rules! match_update {
+    ($m:expr) => {{
+        let mut changed = true;
+        while changed {
+            changed = false;
+            let mut to_remove = Vec::new();
+            for (id, tx) in $m.players.iter() {
+                if let Err(_) = tx.send(MatchEvent::Update($m.info.clone())).await {
+                    to_remove.push(id.clone());
+                }
+            }
+            if to_remove.len() > 0 {
+                changed = true;
+                for id in to_remove {
+                    $m.players.remove(&id);
+                    $m.info.connected.remove(&id);
+                }
+            }
+        }
     }};
 }
 
@@ -153,11 +190,12 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     Some((x, y)) => (*x, *y),
                     None => break,
                 };
-                if Instant::now() < time {
+                let now = Instant::now();
+                if now < time {
                     break;
                 }
                 if let Some(info) = matches.get(&id) {
-                    must_remove = !info.info.running;
+                    must_remove = !info.info.running && now >= info.expiration;
                 }
                 if must_remove {
                     let eid = encode(id);
@@ -183,6 +221,69 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                 }
                 Command::Subscribe(tx) => {
                     send!(tx, (event_tx.subscribe(), matches_info!(matches)));
+                }
+                Command::LeaveMatch(tx, id, name) => {
+                    let eid = decode!(&id);
+                    let m = match matches.get_mut(&eid) {
+                        Some(x) if !x.players.contains_key(&name) => {
+                            send!(tx, Err(format!("\"{}\" is not in this game", name)));
+                            continue;
+                        }
+                        Some(x) if x.info.running => {
+                            send!(tx, Err(format!("Game \"{}\" is already running", id)));
+                            continue;
+                        }
+                        Some(x) => x,
+                        None => {
+                            send!(tx, Err(format!("Game \"{}\" does not exists", id)));
+                            continue;
+                        }
+                    };
+                    let now = Instant::now();
+                    m.info.connected.remove(&name);
+                    m.players.remove(&name);
+                    reaper.remove(&(m.expiration, eid));
+                    m.expiration = now + Duration::from_secs_f64(INSTANCE_LIFETIME);
+                    m.info.time = get_unix_time(m.expiration);
+                    reaper.insert((m.expiration, eid));
+                    match_update!(m);
+                    send_event!(event_tx, Event::Update(m.info.clone()));
+                    send!(tx, Ok(()));
+                }
+                Command::JoinMatch(tx, id, name, ctx) => {
+                    let eid = decode!(&id);
+                    if !username_regex.is_match(&name) {
+                        send!(tx, Err(format!("\"{}\" is not a valid username", name)));
+                        continue;
+                    }
+                    let m = match matches.get_mut(&eid) {
+                        Some(x) if x.info.running => {
+                            send!(tx, Err(format!("Game \"{}\" is already running", id)));
+                            continue;
+                        }
+                        Some(x) if x.players.contains_key(&name) => {
+                            send!(tx, Err(format!("Username \"{}\" already taken", name)));
+                            continue;
+                        }
+                        Some(x) => x,
+                        None => {
+                            send!(tx, Err(format!("Game \"{}\" does not exists", id)));
+                            continue;
+                        }
+                    };
+                    let now = Instant::now();
+                    m.info.connected.insert(name.clone());
+                    m.players.insert(name, ctx);
+                    reaper.remove(&(m.expiration, eid));
+                    m.expiration = now + Duration::from_secs_f64(INSTANCE_LIFETIME);
+                    m.info.time = get_unix_time(m.expiration);
+                    reaper.insert((m.expiration, eid));
+                    match_update!(m);
+                    send_event!(event_tx, Event::Update(m.info.clone()));
+                    if m.players.len() + m.info.bots == m.info.players {
+                        todo!("start game");
+                    }
+                    send!(tx, Ok(m.info.clone()));
                 }
                 Command::NewGame(tx, name, gamename, params, args, hidden) => {
                     if matches.len() >= MAX_GAME_INSTANCES {
@@ -248,7 +349,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                         game: gamename,
                         running: false,
                         time: get_unix_time(expiry_time),
-                        connected: Vec::new(),
+                        connected: HashSet::new(),
                         spectators: 0,
                     };
                     reaper.insert((expiry_time, id));
@@ -256,6 +357,8 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                         info: info.clone(),
                         instance: instance,
                         hidden: hidden,
+                        expiration: expiry_time,
+                        players: BTreeMap::new(),
                     };
                     matches.insert(id, data);
                     if !hidden {

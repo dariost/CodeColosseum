@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub(crate) const MAGIC: &str = "coco";
 pub(crate) const VERSION: u64 = 1;
@@ -76,7 +76,7 @@ pub(crate) struct MatchInfo {
     pub(crate) game: String,
     pub(crate) running: bool,
     pub(crate) time: u64,
-    pub(crate) connected: Vec<String>,
+    pub(crate) connected: HashSet<String>,
     pub(crate) spectators: usize,
 }
 

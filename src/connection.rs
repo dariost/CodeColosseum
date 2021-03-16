@@ -1,5 +1,6 @@
 use crate::master::Services;
 use crate::proto::{self, Reply, Request};
+use crate::tuning::QUEUE_BUFFER;
 use crate::{game, lobby};
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
@@ -8,7 +9,7 @@ use std::fmt::Display;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::select;
 use tokio::sync::broadcast::error::RecvError as BrRecvError;
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::tungstenite::Error as TsError;
 use tokio_tungstenite::WebSocketStream;
@@ -49,6 +50,22 @@ macro_rules! send {
     }};
 }
 
+macro_rules! send2 {
+    ($out:expr, $reply:expr) => {{
+        let msg = match Reply::forge(&$reply) {
+            Ok(x) => x,
+            Err(x) => {
+                error!("Cannot forge reply: {}", x);
+                return Err(());
+            }
+        };
+        if let Err(x) = $out.send(Message::Text(msg)).await {
+            warn!("Cannot send reply: {}", x);
+            return Err(());
+        }
+    }};
+}
+
 macro_rules! oneshot_reply {
     ($srv:expr, $cmd:expr) => {{
         let (tx, rx) = oneshot::channel();
@@ -75,6 +92,37 @@ macro_rules! oneshot_reply {
             Err(x) => {
                 error!("Cannot get reply from {}: {}", stringify!($cmd), x);
                 break;
+            }
+        }
+    }};
+}
+
+macro_rules! oneshot_reply2 {
+    ($srv:expr, $cmd:expr) => {{
+        let (tx, rx) = oneshot::channel();
+        if let Err(_) = $srv.send($cmd(tx)).await {
+            error!("Cannot forward request to {}", stringify!($cmd));
+            return Err(());
+        }
+        match rx.await {
+            Ok(x) => x,
+            Err(x) => {
+                error!("Cannot get reply from {}: {}", stringify!($cmd), x);
+                return Err(());
+            }
+        }
+    }};
+    ($srv:expr, $cmd:expr, $($arg:tt)+) => {{
+        let (tx, rx) = oneshot::channel();
+        if let Err(_) = $srv.send($cmd(tx, $($arg)+)).await {
+            error!("Cannot forward request to {}", stringify!($cmd));
+            return Err(());
+        }
+        match rx.await {
+            Ok(x) => x,
+            Err(x) => {
+                error!("Cannot get reply from {}: {}", stringify!($cmd), x);
+                return Err(());
             }
         }
     }};
@@ -158,6 +206,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         break;
                     }
                 }
+                Request::LobbyJoinMatch { id, name } => {
+                    if let Err(()) =
+                        Self::join_match(&mut wsin, &mut wsout, &self.srv, id, name).await
+                    {
+                        break;
+                    }
+                }
                 Request::GameNew {
                     name,
                     game,
@@ -186,6 +241,77 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
         return self.stop().await;
     }
 
+    async fn join_match<
+        X: Sink<Message> + Unpin,
+        Y: Stream<Item = Result<Message, TsError>> + Unpin,
+    >(
+        wsin: &mut Y,
+        wsout: &mut X,
+        srv: &Services,
+        id: String,
+        name: String,
+    ) -> Result<(), ()>
+    where
+        <X as Sink<Message>>::Error: Display,
+    {
+        let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
+        match oneshot_reply2!(
+            srv.lobby,
+            lobby::Command::JoinMatch,
+            id.clone(),
+            name.clone(),
+            tx
+        ) {
+            Ok(x) => send2!(wsout, Reply::LobbyJoinedMatch { info: Ok(x) }),
+            Err(x) => {
+                send2!(wsout, Reply::LobbyJoinedMatch { info: Err(x) });
+                return Ok(());
+            }
+        };
+        loop {
+            select! {
+                msg = wsin.next() => {
+                    let msg = match msg {
+                        Some(Ok(Message::Text(x))) => x,
+                        Some(_) => continue,
+                        None => {
+                            if let Err(x) = oneshot_reply2!(srv.lobby, lobby::Command::LeaveMatch, id, name) {
+                                error!("Cannot leave match: {}", x);
+                            }
+                            break;
+                        }
+                    };
+                    match Request::parse(&msg) {
+                        Ok(Request::LobbyLeaveMatch) => {
+                            if let Err(x) = oneshot_reply2!(srv.lobby, lobby::Command::LeaveMatch, id, name) {
+                                error!("Cannot leave match: {}", x);
+                                break;
+                            }
+                            send!(wsout, Reply::LobbyLeavedMatch);
+                            return Ok(());
+                        }
+                        Ok(x) => {
+                            warn!("Request not valid while in lobby: {:?}", x);
+                            break;
+                        }
+                        Err(x) => {
+                            warn!("Invalid request: {}", x);
+                            break;
+                        }
+                    };
+                }
+                msg = rx.recv() => { match msg {
+                    Some(lobby::MatchEvent::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
+                    None => {
+                        error!("Lobby is unreachable");
+                        break;
+                    }
+                }}
+            }
+        }
+        Err(())
+    }
+
     async fn lobby<X: Sink<Message> + Unpin, Y: Stream<Item = Result<Message, TsError>> + Unpin>(
         wsin: &mut Y,
         wsout: &mut X,
@@ -194,24 +320,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
     where
         <X as Sink<Message>>::Error: Display,
     {
-        let (otx, orx) = oneshot::channel();
-        srv.lobby
-            .send(lobby::Command::Subscribe(otx))
-            .await
-            .map_err(|x| error!("Lobby is unreachable: {}", x))?;
-        let (mut rx, seed) = orx.await.map_err(|_| error!("Lobby did not respond"))?;
-        match Reply::forge(&Reply::LobbySubscribed { seed }) {
-            Ok(msg) => {
-                if let Err(x) = wsout.send(Message::Text(msg)).await {
-                    warn!("Cannot send reply: {}", x);
-                    return Err(());
-                }
-            }
-            Err(x) => {
-                error!("Cannot forge reply: {}", x);
-                return Err(());
-            }
-        };
+        let (mut rx, seed) = oneshot_reply2!(srv.lobby, lobby::Command::Subscribe);
+        send2!(wsout, Reply::LobbySubscribed { seed });
         loop {
             select! {
                 msg = wsin.next() => {

@@ -6,4 +6,4 @@ pub(crate) const MAX_PLAYERS: usize = 100;
 pub(crate) const MAX_GAME_INSTANCES: usize = 1000;
 pub(crate) const MIN_TIMEOUT: f64 = 0.1;
 pub(crate) const MAX_TIMEOUT: f64 = 600.0;
-pub(crate) const INSTANCE_LIFETIME: f64 = 10.0;
+pub(crate) const INSTANCE_LIFETIME: f64 = 600.0;
