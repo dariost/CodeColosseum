@@ -30,10 +30,10 @@ pub(crate) enum Request {
         password: Option<String>,
     },
     LobbyLeaveMatch,
-    SpectateJoinMatch {
+    SpectateJoin {
         id: String,
     },
-    SpectateLeaveMatch,
+    SpectateLeave,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -52,7 +52,7 @@ pub(crate) enum Reply {
     LobbyLeavedMatch,
     MatchStarted,
     MatchEnded,
-    SpectateJoinedMatch { info: Result<MatchInfo, String> },
+    SpectateJoined { info: Result<MatchInfo, String> },
     SpectateStarted,
     SpectateSynced,
     SpectateEnded,

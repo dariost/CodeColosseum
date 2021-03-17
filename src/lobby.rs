@@ -67,6 +67,12 @@ pub(crate) enum Command {
         mpsc::Sender<MatchEvent>,
     ),
     LeaveMatch(oneshot::Sender<Result<(), String>>, String, String),
+    SpectateMatch(
+        oneshot::Sender<Result<MatchInfo, String>>,
+        String,
+        mpsc::Sender<MatchEvent>,
+    ),
+    RefreshGame(String),
 }
 
 #[derive(Debug, Clone)]
@@ -89,6 +95,7 @@ struct Match {
     password: Option<String>,
     expiration: Instant,
     players: BTreeMap<String, mpsc::Sender<MatchEvent>>,
+    spectators: Vec<mpsc::Sender<MatchEvent>>,
 }
 
 macro_rules! send {
@@ -133,9 +140,15 @@ macro_rules! match_update {
         while changed {
             changed = false;
             let mut to_remove = Vec::new();
+            let mut survived = Vec::new();
             for (id, tx) in $m.players.iter() {
                 if let Err(_) = tx.send(MatchEvent::Update($m.info.clone())).await {
                     to_remove.push(id.clone());
+                }
+            }
+            for tx in $m.spectators.iter() {
+                if let Ok(()) = tx.send(MatchEvent::Update($m.info.clone())).await {
+                    survived.push(tx.clone());
                 }
             }
             if to_remove.len() > 0 {
@@ -145,6 +158,8 @@ macro_rules! match_update {
                     $m.info.connected.remove(&id);
                 }
             }
+            $m.spectators = survived;
+            $m.info.spectators = $m.spectators.len();
         }
     }};
 }
@@ -219,6 +234,34 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                 Command::Subscribe(tx) => {
                     send!(tx, (event_tx.subscribe(), matches_info!(matches)));
                 }
+                Command::RefreshGame(id) => {
+                    let eid = decode!(&id);
+                    let m = match matches.get_mut(&eid) {
+                        Some(x) => x,
+                        None => {
+                            error!("Trying to refresh non-existent game \"{}\"", id);
+                            continue;
+                        }
+                    };
+                    match_update!(m);
+                    send_event!(event_tx, Event::Update(m.info.clone()));
+                }
+                Command::SpectateMatch(tx, id, ctx) => {
+                    let eid = decode!(&id);
+                    let m = match matches.get_mut(&eid) {
+                        Some(x) if x.info.running => todo!("send to game"),
+                        Some(x) => x,
+                        None => {
+                            send!(tx, Err(format!("Game \"{}\" does not exists", id)));
+                            continue;
+                        }
+                    };
+                    send!(tx, Ok(m.info.clone()));
+                    m.spectators.push(ctx);
+                    m.info.spectators += 1;
+                    match_update!(m);
+                    send_event!(event_tx, Event::Update(m.info.clone()));
+                }
                 Command::LeaveMatch(tx, id, name) => {
                     let eid = decode!(&id);
                     let m = match matches.get_mut(&eid) {
@@ -236,6 +279,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                             continue;
                         }
                     };
+                    send!(tx, Ok(()));
                     let now = Instant::now();
                     m.info.connected.remove(&name);
                     m.players.remove(&name);
@@ -245,7 +289,6 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     reaper.insert((m.expiration, eid));
                     match_update!(m);
                     send_event!(event_tx, Event::Update(m.info.clone()));
-                    send!(tx, Ok(()));
                 }
                 Command::JoinMatch(tx, id, name, password, ctx) => {
                     let eid = decode!(&id);
@@ -272,6 +315,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                             continue;
                         }
                     };
+                    send!(tx, Ok(m.info.clone()));
                     let now = Instant::now();
                     m.info.connected.insert(name.clone());
                     m.players.insert(name, ctx);
@@ -284,7 +328,6 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     if m.players.len() + m.info.bots == m.info.players {
                         todo!("start game");
                     }
-                    send!(tx, Ok(m.info.clone()));
                 }
                 Command::NewGame(tx, name, gamename, params, args, password) => {
                     if matches.len() >= MAX_GAME_INSTANCES {
@@ -367,6 +410,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                         expiration: expiry_time,
                         players: BTreeMap::new(),
                         password: password,
+                        spectators: Vec::new(),
                     };
                     matches.insert(id, data);
                     send_event!(event_tx, Event::New(info));

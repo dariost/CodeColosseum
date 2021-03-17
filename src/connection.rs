@@ -213,6 +213,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         break;
                     }
                 }
+                Request::SpectateJoin { id } => {
+                    if let Err(()) =
+                        Self::spectate_match(&mut wsin, &mut wsout, &self.srv, id).await
+                    {
+                        break;
+                    }
+                }
                 Request::GameNew {
                     name,
                     game,
@@ -239,6 +246,69 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
         }
         reunite!(self.ws, wsin, wsout);
         return self.stop().await;
+    }
+
+    async fn spectate_match<
+        X: Sink<Message> + Unpin,
+        Y: Stream<Item = Result<Message, TsError>> + Unpin,
+    >(
+        wsin: &mut Y,
+        wsout: &mut X,
+        srv: &Services,
+        id: String,
+    ) -> Result<(), ()>
+    where
+        <X as Sink<Message>>::Error: Display,
+    {
+        let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
+        match oneshot_reply2!(srv.lobby, lobby::Command::SpectateMatch, id.clone(), tx) {
+            Ok(x) => send2!(wsout, Reply::SpectateJoined { info: Ok(x) }),
+            Err(x) => {
+                send2!(wsout, Reply::SpectateJoined { info: Err(x) });
+                return Ok(());
+            }
+        };
+        loop {
+            select! {
+                msg = wsin.next() => {
+                    let msg = match msg {
+                        Some(Ok(Message::Text(x))) => x,
+                        Some(_) => continue,
+                        None => {
+                            drop(rx);
+                            srv.lobby.send(lobby::Command::RefreshGame(id)).await
+                               .map_err(|_| error!("Lobby is unreachable"))?;
+                            break;
+                        }
+                    };
+                    match Request::parse(&msg) {
+                        Ok(Request::SpectateLeave) => {
+                            drop(rx);
+                            srv.lobby.send(lobby::Command::RefreshGame(id)).await
+                               .map_err(|_| error!("Lobby is unreachable"))?;
+                            send!(wsout, Reply::SpectateLeaved);
+                            return Ok(());
+                        }
+                        Ok(x) => {
+                            warn!("Request not valid while in lobby: {:?}", x);
+                            break;
+                        }
+                        Err(x) => {
+                            warn!("Invalid request: {}", x);
+                            break;
+                        }
+                    };
+                }
+                msg = rx.recv() => { match msg {
+                    Some(lobby::MatchEvent::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
+                    None => {
+                        error!("Lobby is unreachable");
+                        break;
+                    }
+                }}
+            }
+        }
+        Err(())
     }
 
     async fn join_match<
