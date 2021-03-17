@@ -56,13 +56,14 @@ pub(crate) enum Command {
         String,
         game::Params,
         HashMap<String, String>,
-        bool,
+        Option<String>,
     ),
     Subscribe(oneshot::Sender<(broadcast::Receiver<Event>, Vec<MatchInfo>)>),
     JoinMatch(
         oneshot::Sender<Result<MatchInfo, String>>,
         String,
         String,
+        Option<String>,
         mpsc::Sender<MatchEvent>,
     ),
     LeaveMatch(oneshot::Sender<Result<(), String>>, String, String),
@@ -85,7 +86,7 @@ pub(crate) enum MatchEvent {
 struct Match {
     info: MatchInfo,
     instance: Box<dyn game::Instance>,
-    hidden: bool,
+    password: Option<String>,
     expiration: Instant,
     players: BTreeMap<String, mpsc::Sender<MatchEvent>>,
 }
@@ -150,11 +151,7 @@ macro_rules! match_update {
 
 macro_rules! matches_info {
     ($matches:expr) => {{
-        $matches
-            .values()
-            .filter(|x| !x.hidden)
-            .map(|x| x.info.clone())
-            .collect()
+        $matches.values().map(|x| x.info.clone()).collect()
     }};
 }
 
@@ -162,6 +159,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
     mut rng: T,
     username_regex: Regex,
     gamename_regex: Regex,
+    password_regex: Regex,
     game: mpsc::Sender<game::Command>,
 ) -> mpsc::Sender<Command> {
     let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
@@ -201,8 +199,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     let eid = encode(id);
                     info!("Reaping match {} for inactivity", eid);
                     match matches.remove(&id) {
-                        Some(m) if !m.hidden => send_event!(event_tx, Event::Delete(eid)),
-                        Some(_) => {}
+                        Some(_) => send_event!(event_tx, Event::Delete(eid)),
                         None => error!("BTreeMap consistency error"),
                     };
                 }
@@ -250,7 +247,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     send_event!(event_tx, Event::Update(m.info.clone()));
                     send!(tx, Ok(()));
                 }
-                Command::JoinMatch(tx, id, name, ctx) => {
+                Command::JoinMatch(tx, id, name, password, ctx) => {
                     let eid = decode!(&id);
                     if !username_regex.is_match(&name) {
                         send!(tx, Err(format!("\"{}\" is not a valid username", name)));
@@ -263,6 +260,10 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                         }
                         Some(x) if x.players.contains_key(&name) => {
                             send!(tx, Err(format!("Username \"{}\" already taken", name)));
+                            continue;
+                        }
+                        Some(x) if x.password != password => {
+                            send!(tx, Err(format!("Wrong password")));
                             continue;
                         }
                         Some(x) => x,
@@ -285,7 +286,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     }
                     send!(tx, Ok(m.info.clone()));
                 }
-                Command::NewGame(tx, name, gamename, params, args, hidden) => {
+                Command::NewGame(tx, name, gamename, params, args, password) => {
                     if matches.len() >= MAX_GAME_INSTANCES {
                         send!(tx, Err(format!("Server is at maximum capacity")));
                         continue;
@@ -293,6 +294,12 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     if !gamename_regex.is_match(&name) {
                         send!(tx, Err(format!("\"{}\" is not a valid game name", name)));
                         continue;
+                    }
+                    if let Some(ref pw) = password {
+                        if !password_regex.is_match(&pw) {
+                            send!(tx, Err(format!("\"{}\" is not a valid password", pw)));
+                            continue;
+                        }
                     }
                     let (instance, params) = match recv!(
                         game,
@@ -351,19 +358,18 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                         time: get_unix_time(expiry_time),
                         connected: HashSet::new(),
                         spectators: 0,
+                        password: password.is_some(),
                     };
                     reaper.insert((expiry_time, id));
                     let data = Match {
                         info: info.clone(),
                         instance: instance,
-                        hidden: hidden,
                         expiration: expiry_time,
                         players: BTreeMap::new(),
+                        password: password,
                     };
                     matches.insert(id, data);
-                    if !hidden {
-                        send_event!(event_tx, Event::New(info));
-                    }
+                    send_event!(event_tx, Event::New(info));
                     send!(tx, Ok(encode(id)));
                 }
             };

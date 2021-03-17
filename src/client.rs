@@ -159,9 +159,9 @@ struct NewCommand {
     game: String,
     #[clap(about = "Name for the lobby")]
     name: Option<String>,
-    #[clap(short('n'), long, about = "Create an hidden game")]
-    hidden: bool,
-    #[clap(short, long, about = "Number of players")]
+    #[clap(short, long, about = "Password to join the game")]
+    password: Option<String>,
+    #[clap(short('n'), long, about = "Number of players")]
     players: Option<usize>,
     #[clap(short, long, about = "Number of server bots", default_value = "0")]
     bots: usize,
@@ -206,7 +206,7 @@ impl NewCommand {
                 timeout: self.timeout,
             },
             args: args,
-            hidden: self.hidden,
+            password: self.password,
         };
         match oneshot_request(request, wsout, wsin).await? {
             Reply::GameNew { id: Ok(id) } => {

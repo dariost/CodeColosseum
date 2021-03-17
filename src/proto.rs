@@ -19,7 +19,7 @@ pub(crate) enum Request {
         game: String,
         params: GameParams,
         args: HashMap<String, String>,
-        hidden: bool,
+        password: Option<String>,
     },
     LobbyList,
     LobbySubscribe,
@@ -27,6 +27,7 @@ pub(crate) enum Request {
     LobbyJoinMatch {
         id: String,
         name: String,
+        password: Option<String>,
     },
     LobbyLeaveMatch,
     SpectateJoinMatch {
@@ -78,6 +79,7 @@ pub(crate) struct MatchInfo {
     pub(crate) time: u64,
     pub(crate) connected: HashSet<String>,
     pub(crate) spectators: usize,
+    pub(crate) password: bool,
 }
 
 #[allow(dead_code)]

@@ -206,9 +206,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         break;
                     }
                 }
-                Request::LobbyJoinMatch { id, name } => {
+                Request::LobbyJoinMatch { id, name, password } => {
                     if let Err(()) =
-                        Self::join_match(&mut wsin, &mut wsout, &self.srv, id, name).await
+                        Self::join_match(&mut wsin, &mut wsout, &self.srv, id, name, password).await
                     {
                         break;
                     }
@@ -218,7 +218,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                     game,
                     params,
                     args,
-                    hidden,
+                    password,
                 } => {
                     let id = oneshot_reply!(
                         self.srv.lobby,
@@ -227,7 +227,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         game,
                         params,
                         args,
-                        hidden
+                        password
                     );
                     send!(wsout, Reply::GameNew { id });
                 }
@@ -250,6 +250,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
         srv: &Services,
         id: String,
         name: String,
+        password: Option<String>,
     ) -> Result<(), ()>
     where
         <X as Sink<Message>>::Error: Display,
@@ -260,6 +261,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
             lobby::Command::JoinMatch,
             id.clone(),
             name.clone(),
+            password,
             tx
         ) {
             Ok(x) => send2!(wsout, Reply::LobbyJoinedMatch { info: Ok(x) }),

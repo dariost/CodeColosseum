@@ -1,5 +1,5 @@
 use crate::connection::Client;
-use crate::tuning::{GAMENAME_REGEX, USERNAME_REGEX};
+use crate::tuning::{GAMENAME_REGEX, PASSWORD_REGEX, USERNAME_REGEX};
 use crate::{game, lobby};
 use rand::rngs::{OsRng, StdRng};
 use rand::SeedableRng;
@@ -115,10 +115,18 @@ pub(crate) async fn start(args: crate::CliArgs) {
     let rng = init!(StdRng::from_rng(OsRng));
     let username_regex = init!(Regex::new(USERNAME_REGEX));
     let gamename_regex = init!(Regex::new(GAMENAME_REGEX));
+    let password_regex = init!(Regex::new(PASSWORD_REGEX));
     let srv_game = game::start().await;
     let services = Services {
         game: srv_game.clone(),
-        lobby: lobby::start(rng, username_regex, gamename_regex, srv_game).await,
+        lobby: lobby::start(
+            rng,
+            username_regex,
+            gamename_regex,
+            password_regex,
+            srv_game,
+        )
+        .await,
     };
     #[cfg(unix)]
     let result = if args.unix_domain_socket {
