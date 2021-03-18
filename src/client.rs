@@ -161,6 +161,8 @@ struct NewCommand {
     name: Option<String>,
     #[clap(short, long, about = "Password to join the game")]
     password: Option<String>,
+    #[clap(short, long, about = "Password to create a verified game")]
+    verification_password: Option<String>,
     #[clap(short('n'), long, about = "Number of players")]
     players: Option<usize>,
     #[clap(short, long, about = "Number of server bots", default_value = "0")]
@@ -207,6 +209,7 @@ impl NewCommand {
             },
             args: args,
             password: self.password,
+            verification: self.verification_password,
         };
         match oneshot_request(request, wsout, wsin).await? {
             Reply::GameNew { id: Ok(id) } => {

@@ -3,6 +3,7 @@ mod game;
 mod games;
 mod lobby;
 mod master;
+mod play;
 mod proto;
 mod tuning;
 
@@ -16,6 +17,8 @@ struct CliArgs {
     bind_address: String,
     #[clap(short('p'), long, about = "Listen port", default_value = "8088")]
     listen_port: u16,
+    #[clap(short, long, about = "Verification password")]
+    verification_password: Option<String>,
     #[cfg(unix)]
     #[clap(short, long, about = "Use bind address as a Unix Domain Socket")]
     unix_domain_socket: bool,

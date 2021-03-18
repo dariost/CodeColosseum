@@ -226,6 +226,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                     params,
                     args,
                     password,
+                    verification,
                 } => {
                     let id = oneshot_reply!(
                         self.srv.lobby,
@@ -234,7 +235,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         game,
                         params,
                         args,
-                        password
+                        password,
+                        verification
                     );
                     send!(wsout, Reply::GameNew { id });
                 }
@@ -260,14 +262,20 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
     where
         <X as Sink<Message>>::Error: Display,
     {
-        let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
-        match oneshot_reply2!(srv.lobby, lobby::Command::SpectateMatch, id.clone(), tx) {
-            Ok(x) => send2!(wsout, Reply::SpectateJoined { info: Ok(x) }),
-            Err(x) => {
-                send2!(wsout, Reply::SpectateJoined { info: Err(x) });
-                return Ok(());
-            }
-        };
+        let (mut rx, seed) =
+            match oneshot_reply2!(srv.lobby, lobby::Command::SpectateMatch, id.clone()) {
+                Ok((rx, x, seed)) => {
+                    send2!(wsout, Reply::SpectateJoined { info: Ok(x) });
+                    (rx, seed)
+                }
+                Err(x) => {
+                    send2!(wsout, Reply::SpectateJoined { info: Err(x) });
+                    return Ok(());
+                }
+            };
+        if let Some(seed) = seed {
+            todo!()
+        }
         loop {
             select! {
                 msg = wsin.next() => {
@@ -300,9 +308,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                     };
                 }
                 msg = rx.recv() => { match msg {
-                    Some(lobby::MatchEvent::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
-                    None => {
+                    Ok(lobby::MatchEvent::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
+                    Err(BrRecvError::Closed) => {
                         error!("Lobby is unreachable");
+                        break;
+                    }
+                    Err(BrRecvError::Lagged(x)) => {
+                        warn!("Client is {} updates behind: dropping", x);
                         break;
                     }
                 }}

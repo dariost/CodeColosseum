@@ -2,7 +2,7 @@ use crate::connection::Client;
 use crate::tuning::{GAMENAME_REGEX, PASSWORD_REGEX, USERNAME_REGEX};
 use crate::{game, lobby};
 use rand::rngs::{OsRng, StdRng};
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 use regex::Regex;
 use std::error::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -112,7 +112,12 @@ macro_rules! init {
 }
 
 pub(crate) async fn start(args: crate::CliArgs) {
-    let rng = init!(StdRng::from_rng(OsRng));
+    let mut rng = init!(StdRng::from_rng(OsRng));
+    let verification_pw = args.verification_password.clone().unwrap_or_else(|| {
+        let pw = lobby::encode(rng.gen());
+        info!("Verification password: {}", pw);
+        pw
+    });
     let username_regex = init!(Regex::new(USERNAME_REGEX));
     let gamename_regex = init!(Regex::new(GAMENAME_REGEX));
     let password_regex = init!(Regex::new(PASSWORD_REGEX));
@@ -124,6 +129,7 @@ pub(crate) async fn start(args: crate::CliArgs) {
             username_regex,
             gamename_regex,
             password_regex,
+            verification_pw,
             srv_game,
         )
         .await,

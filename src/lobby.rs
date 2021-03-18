@@ -1,4 +1,6 @@
 use crate::game;
+use crate::play;
+pub(crate) use crate::play::MatchEvent;
 use crate::proto::MatchInfo;
 use crate::tuning::*;
 use data_encoding::BASE32_DNSSEC;
@@ -11,7 +13,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio::time::{timeout_at, Duration, Instant};
 use tracing::{debug, error, info, warn};
 
-fn encode(id: u64) -> String {
+pub(crate) fn encode(id: u64) -> String {
     BASE32_DNSSEC.encode(&u64::to_ne_bytes(id))
 }
 
@@ -57,6 +59,7 @@ pub(crate) enum Command {
         game::Params,
         HashMap<String, String>,
         Option<String>,
+        Option<String>,
     ),
     Subscribe(oneshot::Sender<(broadcast::Receiver<Event>, Vec<MatchInfo>)>),
     JoinMatch(
@@ -68,11 +71,13 @@ pub(crate) enum Command {
     ),
     LeaveMatch(oneshot::Sender<Result<(), String>>, String, String),
     SpectateMatch(
-        oneshot::Sender<Result<MatchInfo, String>>,
+        oneshot::Sender<
+            Result<(broadcast::Receiver<MatchEvent>, MatchInfo, Option<Vec<u8>>), String>,
+        >,
         String,
-        mpsc::Sender<MatchEvent>,
     ),
     RefreshGame(String),
+    DeleteGame(String),
 }
 
 #[derive(Debug, Clone)]
@@ -82,20 +87,15 @@ pub(crate) enum Event {
     Delete(String),
 }
 
-#[derive(Debug, Clone)]
-pub(crate) enum MatchEvent {
-    Update(MatchInfo),
-    // Started(todo!()),
-}
-
 #[derive(Debug)]
 struct Match {
     info: MatchInfo,
-    instance: Box<dyn game::Instance>,
+    instance: Option<Box<dyn game::Instance>>,
     password: Option<String>,
     expiration: Instant,
     players: BTreeMap<String, mpsc::Sender<MatchEvent>>,
-    spectators: Vec<mpsc::Sender<MatchEvent>>,
+    spectators: broadcast::Sender<MatchEvent>,
+    play: Option<mpsc::Sender<play::Command>>,
 }
 
 macro_rules! send {
@@ -140,17 +140,13 @@ macro_rules! match_update {
         while changed {
             changed = false;
             let mut to_remove = Vec::new();
-            let mut survived = Vec::new();
+            $m.info.spectators = $m.spectators.receiver_count();
             for (id, tx) in $m.players.iter() {
                 if let Err(_) = tx.send(MatchEvent::Update($m.info.clone())).await {
                     to_remove.push(id.clone());
                 }
             }
-            for tx in $m.spectators.iter() {
-                if let Ok(()) = tx.send(MatchEvent::Update($m.info.clone())).await {
-                    survived.push(tx.clone());
-                }
-            }
+            drop($m.spectators.send(MatchEvent::Update($m.info.clone())));
             if to_remove.len() > 0 {
                 changed = true;
                 for id in to_remove {
@@ -158,8 +154,6 @@ macro_rules! match_update {
                     $m.info.connected.remove(&id);
                 }
             }
-            $m.spectators = survived;
-            $m.info.spectators = $m.spectators.len();
         }
     }};
 }
@@ -175,9 +169,11 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
     username_regex: Regex,
     gamename_regex: Regex,
     password_regex: Regex,
+    verification_pw: String,
     game: mpsc::Sender<game::Command>,
 ) -> mpsc::Sender<Command> {
     let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
+    let mtx = tx.clone();
     spawn(async move {
         let time_sys_offset = match UNIX_EPOCH.elapsed() {
             Ok(x) => x.as_secs(),
@@ -234,6 +230,14 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                 Command::Subscribe(tx) => {
                     send!(tx, (event_tx.subscribe(), matches_info!(matches)));
                 }
+                Command::DeleteGame(id) => {
+                    let eid = decode!(&id);
+                    if let Some(_) = matches.remove(&eid) {
+                        send_event!(event_tx, Event::Delete(id));
+                    } else {
+                        error!("Trying to delete non-existent game \"{}\"", id);
+                    }
+                }
                 Command::RefreshGame(id) => {
                     let eid = decode!(&id);
                     let m = match matches.get_mut(&eid) {
@@ -246,19 +250,39 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     match_update!(m);
                     send_event!(event_tx, Event::Update(m.info.clone()));
                 }
-                Command::SpectateMatch(tx, id, ctx) => {
+                Command::SpectateMatch(tx, id) => {
                     let eid = decode!(&id);
                     let m = match matches.get_mut(&eid) {
-                        Some(x) if x.info.running => todo!("send to game"),
                         Some(x) => x,
                         None => {
                             send!(tx, Err(format!("Game \"{}\" does not exists", id)));
                             continue;
                         }
                     };
-                    send!(tx, Ok(m.info.clone()));
-                    m.spectators.push(ctx);
-                    m.info.spectators += 1;
+                    if m.info.running {
+                        let p = match m.play {
+                            Some(ref x) => x,
+                            None => {
+                                error!("Option consistency error at Command::SpectateMatch");
+                                continue;
+                            }
+                        };
+                        let (otx, orx) = oneshot::channel();
+                        if let Err(_) = p.send(play::Command::Subscribe(otx)).await {
+                            error!("play::Command::Subscribe send failed");
+                            continue;
+                        }
+                        let (sub, seed) = match orx.await {
+                            Ok(x) => x,
+                            Err(_) => {
+                                error!("play::Command::Subscribe recv failed");
+                                continue;
+                            }
+                        };
+                        send!(tx, Ok((sub, m.info.clone(), Some(seed))));
+                    } else {
+                        send!(tx, Ok((m.spectators.subscribe(), m.info.clone(), None)));
+                    }
                     match_update!(m);
                     send_event!(event_tx, Event::Update(m.info.clone()));
                 }
@@ -326,10 +350,31 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     match_update!(m);
                     send_event!(event_tx, Event::Update(m.info.clone()));
                     if m.players.len() + m.info.bots == m.info.players {
-                        todo!("start game");
+                        let instance = match m.instance.take() {
+                            Some(x) => x,
+                            None => {
+                                error!("Option consistency error");
+                                continue;
+                            }
+                        };
+                        m.info.running = true;
+                        m.info.time = get_unix_time(Instant::now());
+                        m.play = Some(
+                            play::start(
+                                instance,
+                                m.players.clone(),
+                                m.spectators.clone(),
+                                mtx.clone(),
+                                m.info.game.clone(),
+                                id,
+                            )
+                            .await,
+                        );
+                        match_update!(m);
+                        send_event!(event_tx, Event::Update(m.info.clone()));
                     }
                 }
-                Command::NewGame(tx, name, gamename, params, args, password) => {
+                Command::NewGame(tx, name, gamename, params, args, password, verification) => {
                     if matches.len() >= MAX_GAME_INSTANCES {
                         send!(tx, Err(format!("Server is at maximum capacity")));
                         continue;
@@ -344,6 +389,17 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                             continue;
                         }
                     }
+                    let verified = match verification {
+                        Some(x) if x == verification_pw => true,
+                        Some(x) => {
+                            send!(
+                                tx,
+                                Err(format!("\"{}\" is the wrong verification password", x))
+                            );
+                            continue;
+                        }
+                        None => false,
+                    };
                     let (instance, params) = match recv!(
                         game,
                         tx,
@@ -402,15 +458,17 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                         connected: HashSet::new(),
                         spectators: 0,
                         password: password.is_some(),
+                        verified: verified,
                     };
                     reaper.insert((expiry_time, id));
                     let data = Match {
                         info: info.clone(),
-                        instance: instance,
+                        instance: Some(instance),
                         expiration: expiry_time,
                         players: BTreeMap::new(),
                         password: password,
-                        spectators: Vec::new(),
+                        spectators: broadcast::channel(BROADCAST_BUFFER).0,
+                        play: None,
                     };
                     matches.insert(id, data);
                     send_event!(event_tx, Event::New(info));

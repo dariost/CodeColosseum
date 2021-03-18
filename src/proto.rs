@@ -20,6 +20,7 @@ pub(crate) enum Request {
         params: GameParams,
         args: HashMap<String, String>,
         password: Option<String>,
+        verification: Option<String>,
     },
     LobbyList,
     LobbySubscribe,
@@ -80,6 +81,7 @@ pub(crate) struct MatchInfo {
     pub(crate) connected: HashSet<String>,
     pub(crate) spectators: usize,
     pub(crate) password: bool,
+    pub(crate) verified: bool,
 }
 
 #[allow(dead_code)]
