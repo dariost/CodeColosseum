@@ -10,7 +10,7 @@ pub(crate) enum Request {
         magic: String,
         version: u64,
     },
-    GameList,
+    GameList {},
     GameDescription {
         name: String,
     },
@@ -22,19 +22,19 @@ pub(crate) enum Request {
         password: Option<String>,
         verification: Option<String>,
     },
-    LobbyList,
-    LobbySubscribe,
-    LobbyUnsubscribe,
+    LobbyList {},
+    LobbySubscribe {},
+    LobbyUnsubscribe {},
     LobbyJoinMatch {
         id: String,
         name: String,
         password: Option<String>,
     },
-    LobbyLeaveMatch,
+    LobbyLeaveMatch {},
     SpectateJoin {
         id: String,
     },
-    SpectateLeave,
+    SpectateLeave {},
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,15 +49,15 @@ pub(crate) enum Reply {
     LobbyNew { info: MatchInfo },
     LobbyUpdate { info: MatchInfo },
     LobbyDelete { id: String },
-    LobbyUnsubscribed,
-    LobbyLeavedMatch,
-    MatchStarted,
-    MatchEnded,
+    LobbyUnsubscribed {},
+    LobbyLeavedMatch {},
+    MatchStarted {},
+    MatchEnded {},
     SpectateJoined { info: Result<MatchInfo, String> },
-    SpectateStarted,
-    SpectateSynced,
-    SpectateEnded,
-    SpectateLeaved,
+    SpectateStarted {},
+    SpectateSynced {},
+    SpectateEnded {},
+    SpectateLeaved {},
 }
 
 #[derive(Serialize, Deserialize, Debug)]

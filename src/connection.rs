@@ -188,7 +188,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                 }
             };
             match req {
-                Request::GameList => {
+                Request::GameList {} => {
                     let games = oneshot_reply!(self.srv.game, game::Command::GetList);
                     send!(wsout, Reply::GameList { games });
                 }
@@ -197,11 +197,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         oneshot_reply!(self.srv.game, game::Command::GetDescription, name);
                     send!(wsout, Reply::GameDescription { description });
                 }
-                Request::LobbyList => {
+                Request::LobbyList {} => {
                     let info = oneshot_reply!(self.srv.lobby, lobby::Command::GetList);
                     send!(wsout, Reply::LobbyList { info });
                 }
-                Request::LobbySubscribe => {
+                Request::LobbySubscribe {} => {
                     if let Err(()) = Self::lobby(&mut wsin, &mut wsout, &self.srv).await {
                         break;
                     }
@@ -290,11 +290,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         }
                     };
                     match Request::parse(&msg) {
-                        Ok(Request::SpectateLeave) => {
+                        Ok(Request::SpectateLeave {}) => {
                             drop(rx);
                             srv.lobby.send(lobby::Command::RefreshGame(id)).await
                                .map_err(|_| error!("Lobby is unreachable"))?;
-                            send!(wsout, Reply::SpectateLeaved);
+                            send!(wsout, Reply::SpectateLeaved {});
                             return Ok(());
                         }
                         Ok(x) => {
@@ -366,12 +366,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         }
                     };
                     match Request::parse(&msg) {
-                        Ok(Request::LobbyLeaveMatch) => {
+                        Ok(Request::LobbyLeaveMatch {}) => {
                             if let Err(x) = oneshot_reply2!(srv.lobby, lobby::Command::LeaveMatch, id, name) {
                                 error!("Cannot leave match: {}", x);
                                 break;
                             }
-                            send!(wsout, Reply::LobbyLeavedMatch);
+                            send!(wsout, Reply::LobbyLeavedMatch {});
                             return Ok(());
                         }
                         Ok(x) => {
@@ -415,8 +415,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         None => break,
                     };
                     match Request::parse(&msg) {
-                        Ok(Request::LobbyUnsubscribe) => {
-                            send!(wsout, Reply::LobbyUnsubscribed);
+                        Ok(Request::LobbyUnsubscribe {}) => {
+                            send!(wsout, Reply::LobbyUnsubscribed {});
                             return Ok(());
                         }
                         Ok(x) => {

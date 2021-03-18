@@ -105,7 +105,7 @@ impl ListCommand {
         let request = if let Some(name) = self.filter {
             Request::GameDescription { name }
         } else {
-            Request::GameList
+            Request::GameList {}
         };
         match oneshot_request(request, wsout, wsin).await? {
             Reply::GameList { games } => {
@@ -140,7 +140,7 @@ impl LobbyCommand {
     where
         <T as Sink<Message>>::Error: Display,
     {
-        let request = Request::LobbyList;
+        let request = Request::LobbyList {};
         match oneshot_request(request, wsout, wsin).await? {
             Reply::LobbyList { info } => {
                 for game in info {
