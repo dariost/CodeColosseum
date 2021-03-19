@@ -309,6 +309,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                 }
                 msg = rx.recv() => { match msg {
                     Ok(lobby::MatchEvent::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
+                    Ok(lobby::MatchEvent::Started(_)) => todo!(),
+                    Ok(_) => {
+                        error!("Wrong message: {:?}", msg);
+                        break;
+                    }
                     Err(BrRecvError::Closed) => {
                         error!("Lobby is unreachable");
                         break;
@@ -386,6 +391,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                 }
                 msg = rx.recv() => { match msg {
                     Some(lobby::MatchEvent::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
+                    Some(lobby::MatchEvent::Started(stream)) => todo!(),
+                    Some(_) => {
+                        error!("Wrong message: {:?}", msg);
+                        break;
+                    }
                     None => {
                         error!("Lobby is unreachable");
                         break;

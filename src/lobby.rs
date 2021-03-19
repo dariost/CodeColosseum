@@ -357,11 +357,35 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                                 continue;
                             }
                         };
+                        let (otx, orx) = oneshot::channel();
+                        if let Err(_) = game
+                            .send(game::Command::GenBots(
+                                otx,
+                                m.info.game.clone(),
+                                m.info.bots,
+                            ))
+                            .await
+                        {
+                            error!("Cannot send request to game::Command::GenBots");
+                            continue;
+                        }
+                        let bots = match orx.await {
+                            Ok(Ok(x)) => x,
+                            Ok(Err(x)) => {
+                                error!("Wrong reply from game::Command::GenBots: {}", x);
+                                continue;
+                            }
+                            Err(_) => {
+                                error!("Cannot get reply from game::Command::GenBots");
+                                continue;
+                            }
+                        };
                         m.info.running = true;
                         m.info.time = get_unix_time(Instant::now());
                         m.play = Some(
                             play::start(
                                 instance,
+                                bots,
                                 m.players.clone(),
                                 m.spectators.clone(),
                                 mtx.clone(),
