@@ -14,11 +14,11 @@ impl Builder {
 
 #[async_trait]
 impl game::Builder for Builder {
-    async fn name(&self) -> &str {
+    fn name(&self) -> &str {
         "roshambo"
     }
-    async fn description(&self) -> &str {
-        include_str!("description.md")
+    async fn description(&self) -> String {
+        String::from(include_str!("description.md"))
     }
     async fn gen_instance(
         &self,

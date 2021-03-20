@@ -11,8 +11,8 @@ use tracing::{error, warn};
 
 #[async_trait]
 pub(crate) trait Builder: Send + Sync + Debug {
-    async fn name(&self) -> &str;
-    async fn description(&self) -> &str;
+    fn name(&self) -> &str;
+    async fn description(&self) -> String;
     async fn gen_instance(
         &self,
         param: &mut Params,
@@ -66,7 +66,7 @@ pub(crate) async fn start() -> mpsc::Sender<Command> {
     spawn(async move {
         let mut games = HashMap::new();
         for game in games::get() {
-            games.insert(String::from(game.name().await), game);
+            games.insert(String::from(game.name()), game);
         }
         while let Some(cmd) = rx.recv().await {
             match cmd {
@@ -75,7 +75,7 @@ pub(crate) async fn start() -> mpsc::Sender<Command> {
                 }
                 Command::GetDescription(tx, name) => {
                     let result = if let Some(game) = games.get(&name) {
-                        Some(game.description().await.to_string())
+                        Some(game.description().await)
                     } else {
                         None
                     };
