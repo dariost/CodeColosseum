@@ -1,3 +1,4 @@
+mod bot;
 mod builder;
 mod instance;
 

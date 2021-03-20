@@ -1,7 +1,11 @@
+use super::bot::Bot;
 use super::instance::Instance;
 use crate::game;
 use async_trait::async_trait;
 use std::collections::HashMap;
+
+const DEFAULT_TIMEOUT: f64 = 30.0;
+const DEFAULT_ROUNDS: usize = 10;
 
 #[derive(Debug)]
 pub(crate) struct Builder {}
@@ -23,13 +27,30 @@ impl game::Builder for Builder {
     async fn gen_instance(
         &self,
         param: &mut game::Params,
-        _args: HashMap<String, String>,
+        args: HashMap<String, String>,
     ) -> Result<Box<dyn game::Instance>, String> {
-        param.players = Some(2);
-        param.timeout = Some(1.0);
-        Ok(Box::new(Instance {}))
+        param.players = match param.players {
+            Some(2) => Some(2),
+            Some(x) => return Err(format!("Cannot create game with {} players", x)),
+            None => Some(2),
+        };
+        param.timeout = param.timeout.or(Some(DEFAULT_TIMEOUT));
+        let rounds = match args
+            .get("rounds")
+            .unwrap_or(&format!("{}", DEFAULT_ROUNDS))
+            .parse()
+        {
+            Ok(0) => return Err(format!("Cannot play for 0 rounds")),
+            Ok(x) if x > 10000 => return Err(format!("Too many rounds")),
+            Ok(x) => x,
+            Err(x) => return Err(format!("Invaid number of rounds: {}", x)),
+        };
+        Ok(Box::new(Instance {
+            rounds: rounds,
+            timeout: param.timeout.unwrap(),
+        }))
     }
     async fn gen_bot(&self) -> Box<dyn game::Bot> {
-        todo!()
+        Box::new(Bot {})
     }
 }
