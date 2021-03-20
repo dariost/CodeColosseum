@@ -57,7 +57,7 @@ impl game::Builder for Builder {
         };
         Ok(Box::new(Instance {
             rounds: rounds,
-            timeout: param.timeout.unwrap(),
+            timeout: param.timeout.expect("Cannot fail"),
             pace: pace,
         }))
     }

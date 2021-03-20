@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 use tokio::io::{duplex, split, AsyncReadExt, DuplexStream};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio::{select, spawn};
-use tracing::{error, instrument, warn};
+use tracing::{error, info, instrument, warn};
 
 #[derive(Debug)]
 pub(crate) enum MatchEvent {
@@ -44,6 +44,7 @@ pub(crate) async fn start(
 ) -> mpsc::Sender<Command> {
     let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
     spawn(async move {
+        info!("Game started");
         let mut streams = HashMap::new();
         let mut hbot = Vec::new();
         for (name, tx) in players.iter() {
@@ -106,10 +107,14 @@ pub(crate) async fn start(
         }
         for bot in hbot {
             bot.abort();
+            if let Err(x) = bot.await {
+                warn!("Bot did not exit gracefully: {}", x);
+            }
         }
         if let Err(_) = lobby.send(lobby::Command::DeleteGame(id)).await {
             error!("Cannot send delete request lobby::Command::DeleteGame");
         }
+        info!("Game ended");
     });
     tx
 }

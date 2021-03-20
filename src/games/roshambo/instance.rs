@@ -75,8 +75,8 @@ impl game::Instance for Instance {
         }
         let tout = Duration::from_secs_f64(self.timeout);
         let pace = Duration::from_secs_f64(self.pace);
-        let mut p1 = p.pop().unwrap();
-        let mut p0 = p.pop().unwrap();
+        let mut p1 = p.pop().expect("Cannot fail");
+        let mut p0 = p.pop().expect("Cannot fail");
         for _ in 0..self.rounds {
             let start = Instant::now();
             let mut l0 = String::new();

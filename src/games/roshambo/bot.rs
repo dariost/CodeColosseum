@@ -46,7 +46,7 @@ impl game::Bot for Bot {
         lnin!(input); // Read opponent name
         let rounds: usize = lnin!(input).parse().expect("Cannot parse number of rounds");
         for _ in 0..rounds {
-            lnout!(output, *MOVES.choose(&mut rng).unwrap());
+            lnout!(output, *MOVES.choose(&mut rng).expect("Cannot fail"));
             if lnin!(input) == "RETIRE" {
                 break;
             }

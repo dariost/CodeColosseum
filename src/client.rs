@@ -7,11 +7,25 @@ use futures_util::stream::Stream;
 use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::process::Stdio;
+use tokio::fs::OpenOptions;
+use tokio::io::{stdin, stdout, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::join;
+use tokio::process as proc;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::tungstenite::Error as TsError;
 use tracing::{error, warn};
+
+#[cfg(unix)]
+use {
+    nix::{
+        sys::stat::Mode,
+        unistd::{mkfifo, Pid},
+    },
+    tempfile::tempdir,
+};
 
 #[derive(Clap, Debug)]
 struct CliArgs {
@@ -34,6 +48,8 @@ enum Command {
     Lobby(LobbyCommand),
     #[clap(about = "Create new game")]
     New(NewCommand),
+    #[clap(about = "Play or spectate a game")]
+    Connect(ConnectCommand),
 }
 
 impl Command {
@@ -49,6 +65,7 @@ impl Command {
             Command::List(cmd) => cmd.run(wsout, wsin).await,
             Command::Lobby(cmd) => cmd.run(wsout, wsin).await,
             Command::New(cmd) => cmd.run(wsout, wsin).await,
+            Command::Connect(cmd) => cmd.run(wsout, wsin).await,
         }
     }
 }
@@ -222,6 +239,219 @@ impl NewCommand {
             }
             _ => Err(format!("Server returned the wrong reply")),
         }
+    }
+}
+
+#[derive(Clap, Debug)]
+struct ConnectCommand {
+    #[clap(about = "Game ID")]
+    id: String,
+    #[clap(short, long, about = "Spectate instead of play")]
+    spectate: bool,
+    #[clap(short, long, about = "Username for the game")]
+    name: Option<String>,
+    #[clap(
+        arg_enum,
+        short,
+        long,
+        about = "Channel for program communication",
+        default_value = "stdio"
+    )]
+    channel: CommunicationChannel,
+    #[clap(about = "Command to invoke", raw = true)]
+    program: Vec<String>,
+}
+
+#[derive(Clap, Debug)]
+enum CommunicationChannel {
+    Stdio,
+    #[cfg(unix)]
+    Pipe,
+}
+
+impl ConnectCommand {
+    async fn run<T: Sink<Message> + Unpin, U: Stream<Item = Result<Message, TsError>> + Unpin>(
+        self,
+        wsout: &mut T,
+        wsin: &mut U,
+    ) -> Result<(), String>
+    where
+        <T as Sink<Message>>::Error: Display,
+    {
+        match self.channel {
+            CommunicationChannel::Stdio => {
+                if self.program.len() > 0 {
+                    let mut prog = proc::Command::new(&self.program[0]);
+                    if self.program.len() > 1 {
+                        prog.args(&self.program[1..]);
+                    }
+                    if !self.spectate {
+                        prog.stdout(Stdio::piped());
+                    }
+                    prog.stdin(Stdio::piped());
+                    let mut prog = match prog.spawn() {
+                        Ok(x) => x,
+                        Err(x) => return Err(format!("Cannot spawn program: {}", x)),
+                    };
+                    let result = if self.spectate {
+                        self.spectate(wsout, wsin, prog.stdin.take().expect("Cannot fail"))
+                            .await
+                    } else {
+                        self.play(
+                            wsout,
+                            wsin,
+                            prog.stdout.take().expect("Cannot fail"),
+                            prog.stdin.take().expect("Cannot fail"),
+                        )
+                        .await
+                    };
+                    match result {
+                        Ok(()) => match prog.wait().await {
+                            Ok(x) if x.success() => Ok(()),
+                            Ok(x) => Err(format!("Program exited with non-zero code: {}", x)),
+                            Err(x) => Err(format!("Program exited abruptly: {}", x)),
+                        },
+                        Err(x) => {
+                            drop(prog.kill().await);
+                            Err(x)
+                        }
+                    }
+                } else {
+                    if self.spectate {
+                        self.spectate(wsout, wsin, stdout()).await
+                    } else {
+                        self.play(wsout, wsin, stdin(), stdout()).await
+                    }
+                }
+            }
+            #[cfg(unix)]
+            CommunicationChannel::Pipe => {
+                let pid = Pid::this();
+                let dir = tempdir().map_err(|x| format!("Cannot create tempdir: {}", x))?;
+                let inpipe_name = dir.path().join(format!("coco.{}.out", pid));
+                let inp = inpipe_name.to_string_lossy();
+                let outpipe_name = dir.path().join(format!("coco.{}.in", pid));
+                let outp = outpipe_name.to_string_lossy();
+                if !self.spectate {
+                    mkfifo(&inpipe_name, Mode::S_IRWXU)
+                        .map_err(|x| format!("Cannot create pipe: {}", x))?;
+                }
+                mkfifo(&outpipe_name, Mode::S_IRWXU)
+                    .map_err(|x| format!("Cannot create pipe: {}", x))?;
+                if self.program.len() > 0 {
+                    let mut prog = proc::Command::new(&self.program[0]);
+                    if self.program.len() > 1 {
+                        prog.args(&self.program[1..]);
+                    }
+                    prog.env("COCO_PIPEIN", &outpipe_name);
+                    if !self.spectate {
+                        prog.env("COCO_PIPEOUT", &inpipe_name);
+                    }
+                    let mut prog = match prog.spawn() {
+                        Ok(x) => x,
+                        Err(x) => return Err(format!("Cannot spawn program: {}", x)),
+                    };
+                    if self.spectate {
+                        println!("> Waiting until the program opens the pipe");
+                    } else {
+                        println!("> Waiting until the program open the pipes");
+                    }
+                    let result = if self.spectate {
+                        let outpipe = OpenOptions::new()
+                            .write(true)
+                            .open(&outpipe_name)
+                            .await
+                            .map_err(|x| format!("Cannot open pipe: {}", x))?;
+                        self.spectate(wsout, wsin, outpipe).await
+                    } else {
+                        let mut inpipe = OpenOptions::new();
+                        let mut outpipe = OpenOptions::new();
+                        let (inpipe, outpipe) = join!(
+                            inpipe.read(true).open(&inpipe_name),
+                            outpipe.write(true).open(&outpipe_name)
+                        );
+                        let (inpipe, outpipe) = match (inpipe, outpipe) {
+                            (Ok(x), Ok(y)) => (x, y),
+                            (Err(x), _) => return Err(format!("Cannot open pipe: {}", x)),
+                            (_, Err(y)) => return Err(format!("Cannot open pipe: {}", y)),
+                        };
+                        self.play(wsout, wsin, inpipe, outpipe).await
+                    };
+                    match result {
+                        Ok(()) => match prog.wait().await {
+                            Ok(x) if x.success() => Ok(()),
+                            Ok(x) => Err(format!("Program exited with non-zero code: {}", x)),
+                            Err(x) => Err(format!("Program exited abruptly: {}", x)),
+                        },
+                        Err(x) => {
+                            drop(prog.kill());
+                            Err(x)
+                        }
+                    }
+                } else {
+                    if self.spectate {
+                        println!("> Input (stdin-like) pipe: {}", outp);
+                        println!("> Waiting until some program opens the pipe");
+                        let outpipe = OpenOptions::new()
+                            .write(true)
+                            .open(&outpipe_name)
+                            .await
+                            .map_err(|x| format!("Cannot open pipe: {}", x))?;
+                        self.spectate(wsout, wsin, outpipe).await
+                    } else {
+                        println!("> Input (stdin-like) pipe: {}", outp);
+                        println!("> Output (stdout-like) pipe: {}", inp);
+                        println!("> Waiting until some program open the pipes");
+                        let mut inpipe = OpenOptions::new();
+                        let mut outpipe = OpenOptions::new();
+                        let (inpipe, outpipe) = join!(
+                            inpipe.read(true).open(&inpipe_name),
+                            outpipe.write(true).open(&outpipe_name)
+                        );
+                        let (inpipe, outpipe) = match (inpipe, outpipe) {
+                            (Ok(x), Ok(y)) => (x, y),
+                            (Err(x), _) => return Err(format!("Cannot open pipe: {}", x)),
+                            (_, Err(y)) => return Err(format!("Cannot open pipe: {}", y)),
+                        };
+                        self.play(wsout, wsin, inpipe, outpipe).await
+                    }
+                }
+            }
+        }
+    }
+
+    async fn play<
+        T: Sink<Message> + Unpin,
+        U: Stream<Item = Result<Message, TsError>> + Unpin,
+        X: AsyncRead,
+        Y: AsyncWrite,
+    >(
+        self,
+        wsout: &mut T,
+        wsin: &mut U,
+        pipein: X,
+        pipeout: Y,
+    ) -> Result<(), String>
+    where
+        <T as Sink<Message>>::Error: Display,
+    {
+        todo!()
+    }
+
+    async fn spectate<
+        T: Sink<Message> + Unpin,
+        U: Stream<Item = Result<Message, TsError>> + Unpin,
+        Y: AsyncWrite,
+    >(
+        self,
+        wsout: &mut T,
+        wsin: &mut U,
+        pipeout: Y,
+    ) -> Result<(), String>
+    where
+        <T as Sink<Message>>::Error: Display,
+    {
+        todo!()
     }
 }
 
