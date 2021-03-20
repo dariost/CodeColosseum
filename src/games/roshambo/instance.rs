@@ -89,6 +89,7 @@ impl game::Instance for Instance {
             );
             let r0 = process!(r0, l0);
             let r1 = process!(r1, l1);
+            sleep_until(start + pace).await;
             match (r0, r1) {
                 (Some(x), Some(y)) => {
                     lnout!(p1.output, x);
@@ -114,10 +115,9 @@ impl game::Instance for Instance {
                     break;
                 }
             };
-            if let Err(_) = control.send(play::Command::Stop).await {
-                error!("Cannot send play::Command::Stop");
-            }
-            sleep_until(start + pace).await;
+        }
+        if let Err(_) = control.send(play::Command::Stop).await {
+            error!("Cannot send play::Command::Stop");
         }
     }
 }
