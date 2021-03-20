@@ -13,6 +13,7 @@ pub(crate) enum MatchEvent {
     Update(MatchInfo),
     Started(Option<DuplexStream>),
     SpectatorData(Vec<u8>),
+    Ended,
 }
 
 impl Clone for MatchEvent {
@@ -21,6 +22,7 @@ impl Clone for MatchEvent {
             MatchEvent::Update(x) => MatchEvent::Update(x.clone()),
             MatchEvent::Started(_) => MatchEvent::Started(None),
             MatchEvent::SpectatorData(x) => MatchEvent::SpectatorData(x.clone()),
+            MatchEvent::Ended => MatchEvent::Ended,
         }
     }
 }
@@ -88,6 +90,12 @@ pub(crate) async fn start(
                         }
                     }
                     Some(Command::Stop) | None => {
+                        drop(spectators.send(MatchEvent::Ended));
+                        for (name, tx) in players.iter() {
+                            if let Err(_) = tx.send(MatchEvent::Ended).await {
+                                warn!("Player \"{}\" did not receive MatchEvent::Ended", name);
+                            }
+                        }
                         if let Err(_) = lobby.send(lobby::Command::DeleteGame(id)).await {
                             error!("Cannot send delete request");
                         }

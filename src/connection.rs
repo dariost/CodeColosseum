@@ -1,12 +1,12 @@
 use crate::master::Services;
 use crate::proto::{self, Reply, Request};
-use crate::tuning::QUEUE_BUFFER;
+use crate::tuning::{CHUNK_SIZE, PIPE_BUFFER, QUEUE_BUFFER};
 use crate::{game, lobby};
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
 use futures_util::{SinkExt, StreamExt};
 use std::fmt::Display;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{split, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 use tokio::select;
 use tokio::sync::broadcast::error::RecvError as BrRecvError;
 use tokio::sync::{mpsc, oneshot};
@@ -274,7 +274,21 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                 }
             };
         if let Some(seed) = seed {
-            todo!()
+            send2!(wsout, Reply::SpectateStarted {});
+            let mut base = 0;
+            while base < seed.len() {
+                if let Err(x) = wsout
+                    .send(Message::Binary(
+                        seed[base..(base + CHUNK_SIZE).min(seed.len())].into(),
+                    ))
+                    .await
+                {
+                    warn!("Cannot send spectator seed: {}", x);
+                    return Err(());
+                }
+                base += CHUNK_SIZE;
+            }
+            send2!(wsout, Reply::SpectateSynced {});
         }
         loop {
             select! {
@@ -309,10 +323,19 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                 }
                 msg = rx.recv() => { match msg {
                     Ok(lobby::MatchEvent::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
-                    Ok(lobby::MatchEvent::Started(_)) => todo!(),
-                    Ok(_) => {
-                        error!("Wrong message: {:?}", msg);
-                        break;
+                    Ok(lobby::MatchEvent::Started(_)) => {
+                        send!(wsout, Reply::SpectateStarted {});
+                        send!(wsout, Reply::SpectateSynced {});
+                    }
+                    Ok(lobby::MatchEvent::SpectatorData(data)) => {
+                        if let Err(x) = wsout.send(Message::Binary(data)).await {
+                            warn!("Cannot send spectator data: {}", x);
+                            break;
+                        }
+                    }
+                    Ok(lobby::MatchEvent::Ended) => {
+                        send!(wsout, Reply::SpectateEnded {});
+                        return Ok(());
                     }
                     Err(BrRecvError::Closed) => {
                         error!("Lobby is unreachable");
@@ -391,7 +414,10 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                 }
                 msg = rx.recv() => { match msg {
                     Some(lobby::MatchEvent::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
-                    Some(lobby::MatchEvent::Started(stream)) => todo!(),
+                    Some(lobby::MatchEvent::Started(Some(stream))) => {
+                        send!(wsout, Reply::MatchStarted {});
+                        return Self::play(wsin, wsout, stream, rx).await;
+                    }
                     Some(_) => {
                         error!("Wrong message: {:?}", msg);
                         break;
@@ -401,6 +427,67 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         break;
                     }
                 }}
+            }
+        }
+        Err(())
+    }
+
+    async fn play<X: Sink<Message> + Unpin, Y: Stream<Item = Result<Message, TsError>> + Unpin>(
+        wsin: &mut Y,
+        wsout: &mut X,
+        stream: DuplexStream,
+        mut rx: mpsc::Receiver<lobby::MatchEvent>,
+    ) -> Result<(), ()>
+    where
+        <X as Sink<Message>>::Error: Display,
+    {
+        let (mut ppin, mut ppout) = split(stream);
+        let mut buffer = [0; PIPE_BUFFER];
+        loop {
+            select! {
+                msg = wsin.next() => {
+                    let msg = match msg {
+                        Some(Ok(Message::Binary(x))) => x,
+                        Some(Ok(Message::Text(_))) => {
+                            warn!("Client sent command while playing, ignoring");
+                            continue;
+                        }
+                        Some(_) => continue,
+                        None => {
+                            warn!("Lost connection while playing");
+                            break;
+                        }
+                    };
+                    if let Err(x) = ppout.write_all(&msg).await {
+                        warn!("Cannot write to game manager: {}", x);
+                        break;
+                    }
+                }
+                msg = rx.recv() => { match msg {
+                    Some(lobby::MatchEvent::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
+                    Some(lobby::MatchEvent::Ended) => {
+                        send!(wsout, Reply::MatchEnded {});
+                        return Ok(());
+                    }
+                    Some(_) => continue,
+                    None => {
+                        error!("Message channel ended prematurely");
+                        break;
+                    }
+                }}
+                msg = ppin.read(&mut buffer) => {
+                    let size = match msg {
+                        Ok(x) => x,
+                        Err(x) => {
+                            error!("Game manager pipe ended prematurely: {}", x);
+                            break;
+                        }
+                    };
+                    if let Err(x) = wsout.send(Message::Binary(buffer[..size].into())).await {
+                        warn!("Lost connection while playing: {}", x);
+                        break;
+                    }
+                }
             }
         }
         Err(())

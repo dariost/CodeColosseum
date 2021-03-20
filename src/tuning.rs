@@ -9,3 +9,4 @@ pub(crate) const MAX_GAME_INSTANCES: usize = 1000;
 pub(crate) const MIN_TIMEOUT: f64 = 0.1;
 pub(crate) const MAX_TIMEOUT: f64 = 600.0;
 pub(crate) const INSTANCE_LIFETIME: f64 = 600.0;
+pub(crate) const CHUNK_SIZE: usize = 1 << 20;
