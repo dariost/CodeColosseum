@@ -1,6 +1,6 @@
+use crate::games;
 pub(crate) use crate::proto::GameParams as Params;
 use crate::tuning::QUEUE_BUFFER;
-use crate::{games, play};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -27,7 +27,6 @@ pub(crate) trait Instance: Send + Sync + Debug {
         &mut self,
         players: HashMap<String, DuplexStream>,
         spectators: WriteHalf<DuplexStream>,
-        control: mpsc::Sender<play::Command>,
     );
 }
 

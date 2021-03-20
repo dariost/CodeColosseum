@@ -30,7 +30,6 @@ impl Clone for MatchEvent {
 #[derive(Debug)]
 pub(crate) enum Command {
     Subscribe(oneshot::Sender<(broadcast::Receiver<MatchEvent>, Vec<u8>)>),
-    Stop,
 }
 
 #[instrument(name = "game", skip(instance, bots, players, spectators, lobby))]
@@ -44,9 +43,9 @@ pub(crate) async fn start(
     id: String,
 ) -> mpsc::Sender<Command> {
     let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
-    let mtx = tx.clone();
     spawn(async move {
         let mut streams = HashMap::new();
+        let mut hbot = Vec::new();
         for (name, tx) in players.iter() {
             let (ph, gh) = duplex(PIPE_BUFFER);
             streams.insert(name.clone(), gh);
@@ -57,17 +56,17 @@ pub(crate) async fn start(
         for (i, mut bot) in bots.into_iter().enumerate() {
             let (bh, gh) = duplex(PIPE_BUFFER);
             streams.insert(format!("ServerBot${}", i), gh);
-            spawn(async move {
+            hbot.push(spawn(async move {
                 bot.start(bh).await;
-            });
+            }));
         }
         drop(spectators.send(MatchEvent::Started(None)));
         let (msh, gsh) = duplex(PIPE_BUFFER);
         let mut spectate = split(msh).0;
         let mut history: Vec<u8> = Vec::new();
         let mut buffer = [0; PIPE_BUFFER];
-        spawn(async move {
-            instance.start(streams, split(gsh).1, mtx).await;
+        let mut instance = spawn(async move {
+            instance.start(streams, split(gsh).1).await;
         });
         loop {
             select! {
@@ -89,20 +88,27 @@ pub(crate) async fn start(
                             error!("Subscription send failed");
                         }
                     }
-                    Some(Command::Stop) | None => {
-                        drop(spectators.send(MatchEvent::Ended));
-                        for (name, tx) in players.iter() {
-                            if let Err(_) = tx.send(MatchEvent::Ended).await {
-                                warn!("Player \"{}\" did not receive MatchEvent::Ended", name);
-                            }
-                        }
-                        if let Err(_) = lobby.send(lobby::Command::DeleteGame(id)).await {
-                            error!("Cannot send delete request");
-                        }
-                        break;
-                    }
+                    None => error!("Command queue dropped prematurely"),
                 }}
+                result = &mut instance => {
+                    if let Err(x) = result {
+                        error!("Game exited with a panic: {}", x);
+                    }
+                    break;
+                }
             }
+        }
+        drop(spectators.send(MatchEvent::Ended));
+        for (name, tx) in players.iter() {
+            if let Err(_) = tx.send(MatchEvent::Ended).await {
+                warn!("Player \"{}\" did not receive MatchEvent::Ended", name);
+            }
+        }
+        for bot in hbot {
+            bot.abort();
+        }
+        if let Err(_) = lobby.send(lobby::Command::DeleteGame(id)).await {
+            error!("Cannot send delete request lobby::Command::DeleteGame");
         }
     });
     tx

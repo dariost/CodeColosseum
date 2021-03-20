@@ -1,4 +1,4 @@
-use crate::{game, play};
+use crate::game;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -6,9 +6,8 @@ use tokio::io::{
     split, AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, ReadHalf, WriteHalf,
 };
 use tokio::join;
-use tokio::sync::mpsc;
 use tokio::time::{sleep_until, timeout, Instant};
-use tracing::{error, warn};
+use tracing::warn;
 
 #[derive(Debug)]
 pub(crate) struct Instance {
@@ -56,7 +55,6 @@ impl game::Instance for Instance {
         &mut self,
         players: HashMap<String, DuplexStream>,
         mut spectators: WriteHalf<DuplexStream>,
-        control: mpsc::Sender<play::Command>,
     ) {
         let mut p = Vec::new();
         for (name, stream) in players.into_iter() {
@@ -115,9 +113,6 @@ impl game::Instance for Instance {
                     break;
                 }
             };
-        }
-        if let Err(_) = control.send(play::Command::Stop).await {
-            error!("Cannot send play::Command::Stop");
         }
     }
 }
