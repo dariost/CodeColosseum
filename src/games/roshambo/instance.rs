@@ -7,13 +7,14 @@ use tokio::io::{
 };
 use tokio::join;
 use tokio::sync::mpsc;
-use tokio::time::timeout;
+use tokio::time::{sleep_until, timeout, Instant};
 use tracing::{error, warn};
 
 #[derive(Debug)]
 pub(crate) struct Instance {
     pub(crate) rounds: usize,
     pub(crate) timeout: f64,
+    pub(crate) pace: f64,
 }
 
 struct Player {
@@ -75,9 +76,11 @@ impl game::Instance for Instance {
             lnout!(p[i].output, format!("{}", self.rounds));
         }
         let tout = Duration::from_secs_f64(self.timeout);
+        let pace = Duration::from_secs_f64(self.pace);
         let mut p1 = p.pop().unwrap();
         let mut p0 = p.pop().unwrap();
         for _ in 0..self.rounds {
+            let start = Instant::now();
             let mut l0 = String::new();
             let mut l1 = String::new();
             let (r0, r1) = join!(
@@ -114,6 +117,7 @@ impl game::Instance for Instance {
             if let Err(_) = control.send(play::Command::Stop).await {
                 error!("Cannot send play::Command::Stop");
             }
+            sleep_until(start + pace).await;
         }
     }
 }

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 const DEFAULT_TIMEOUT: f64 = 30.0;
 const DEFAULT_ROUNDS: usize = 10;
+const DEFAULT_PACE: f64 = 1.0;
 
 #[derive(Debug)]
 pub(crate) struct Builder {}
@@ -45,9 +46,19 @@ impl game::Builder for Builder {
             Ok(x) => x,
             Err(x) => return Err(format!("Invaid number of rounds: {}", x)),
         };
+        let pace = match args
+            .get("pace")
+            .unwrap_or(&format!("{}", DEFAULT_PACE))
+            .parse()
+        {
+            Ok(x) if x < 0.0 || x > 30.0 => return Err(format!("Invalid pace")),
+            Ok(x) => x,
+            Err(x) => return Err(format!("Invaid pace: {}", x)),
+        };
         Ok(Box::new(Instance {
             rounds: rounds,
             timeout: param.timeout.unwrap(),
+            pace: pace,
         }))
     }
     async fn gen_bot(&self) -> Box<dyn game::Bot> {
