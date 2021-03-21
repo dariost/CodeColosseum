@@ -5,6 +5,7 @@ use clap::Clap;
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
 use futures_util::{SinkExt, StreamExt};
+use prettytable::{Attr, Cell, Row, Table};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::process::Stdio;
@@ -160,15 +161,37 @@ impl LobbyCommand {
         <T as Sink<Message>>::Error: Display,
     {
         let request = Request::LobbyList {};
-        match oneshot_request(request, wsout, wsin).await? {
-            Reply::LobbyList { info } => {
-                for game in info {
-                    println!("{:?}", game);
-                }
-                Ok(())
-            }
-            _ => Err(format!("Server returned the wrong reply")),
+        let info = match oneshot_request(request, wsout, wsin).await? {
+            Reply::LobbyList { info } => info,
+            _ => return Err(format!("Server returned the wrong reply")),
+        };
+        let mut table = Table::new();
+        const FIELDS: &[&str] = &[
+            "ID", "Verified", "Name", "Game", "Players", "Password", "Running",
+        ];
+        table.add_row(Row::new(
+            FIELDS
+                .iter()
+                .map(|x| Cell::new(x).with_style(Attr::Bold))
+                .collect(),
+        ));
+        for game in info {
+            table.add_row(Row::new(vec![
+                Cell::new(&game.id),
+                Cell::new(if game.verified { "   X    " } else { "" }),
+                Cell::new(&game.name),
+                Cell::new(&game.game),
+                Cell::new(&format!(
+                    "{}/{}",
+                    game.connected.len() + game.bots,
+                    game.players
+                )),
+                Cell::new(if game.password { "   X    " } else { "" }),
+                Cell::new(if game.running { "   X   " } else { "" }),
+            ]));
         }
+        table.printstd();
+        Ok(())
     }
 }
 
