@@ -1,18 +1,20 @@
 use crate::game;
 use crate::lobby;
 use crate::proto::MatchInfo;
-use crate::tuning::{PIPE_BUFFER, QUEUE_BUFFER};
+use crate::tuning::{END_GRACE_PERIOD, PIPE_BUFFER, QUEUE_BUFFER};
 use std::collections::{BTreeMap, HashMap};
 use tokio::io::{duplex, split, AsyncReadExt, DuplexStream};
 use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::time::{sleep, Duration};
 use tokio::{select, spawn};
-use tracing::{error, info, instrument, warn};
+use tracing::{error, info, info_span, warn, Instrument};
 
 #[derive(Debug)]
 pub(crate) enum MatchEvent {
     Update(MatchInfo),
     Started(Option<DuplexStream>),
     SpectatorData(Vec<u8>),
+    Expired,
     Ended,
 }
 
@@ -23,6 +25,7 @@ impl Clone for MatchEvent {
             MatchEvent::Started(_) => MatchEvent::Started(None),
             MatchEvent::SpectatorData(x) => MatchEvent::SpectatorData(x.clone()),
             MatchEvent::Ended => MatchEvent::Ended,
+            MatchEvent::Expired => MatchEvent::Expired,
         }
     }
 }
@@ -32,7 +35,6 @@ pub(crate) enum Command {
     Subscribe(oneshot::Sender<(broadcast::Receiver<MatchEvent>, Vec<u8>)>),
 }
 
-#[instrument(name = "game", skip(instance, bots, players, spectators, lobby))]
 pub(crate) async fn start(
     mut instance: Box<dyn game::Instance>,
     bots: Vec<Box<dyn game::Bot>>,
@@ -42,6 +44,7 @@ pub(crate) async fn start(
     game: String,
     id: String,
 ) -> mpsc::Sender<Command> {
+    let span = info_span!("game", id = id.as_str(), game = game.as_str());
     let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
     spawn(async move {
         info!("Game started");
@@ -99,6 +102,13 @@ pub(crate) async fn start(
                 }
             }
         }
+        while let Ok(size) = spectate.read(&mut buffer).await {
+            if size == 0 {
+                break;
+            }
+            drop(spectators.send(MatchEvent::SpectatorData(Vec::from(&buffer[..size]))));
+        }
+        sleep(Duration::from_secs_f64(END_GRACE_PERIOD)).await;
         drop(spectators.send(MatchEvent::Ended));
         for (name, tx) in players.iter() {
             if let Err(_) = tx.send(MatchEvent::Ended).await {
@@ -115,6 +125,6 @@ pub(crate) async fn start(
             error!("Cannot send delete request lobby::Command::DeleteGame");
         }
         info!("Game ended");
-    });
+    }.instrument(span));
     tx
 }

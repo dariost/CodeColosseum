@@ -323,6 +323,10 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                 }
                 msg = rx.recv() => { match msg {
                     Ok(lobby::MatchEvent::Update(info)) => send!(wsout, Reply::LobbyUpdate { info }),
+                    Ok(lobby::MatchEvent::Expired) => {
+                        send!(wsout, Reply::LobbyDelete { id });
+                        return Ok(());
+                    },
                     Ok(lobby::MatchEvent::Started(_)) => {
                         send!(wsout, Reply::SpectateStarted {});
                         send!(wsout, Reply::SpectateSynced {});
@@ -418,6 +422,10 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         send!(wsout, Reply::MatchStarted {});
                         return Self::play(wsin, wsout, stream, rx).await;
                     }
+                    Some(lobby::MatchEvent::Expired) => {
+                        send!(wsout, Reply::LobbyDelete { id });
+                        return Ok(());
+                    },
                     Some(_) => {
                         error!("Wrong message: {:?}", msg);
                         break;

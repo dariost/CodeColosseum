@@ -1,21 +1,21 @@
 mod proto;
 
-use crate::proto::{GameParams, Reply, Request};
+use crate::proto::{GameParams, MatchInfo, Reply, Request};
 use clap::Clap;
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
 use futures_util::{SinkExt, StreamExt};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::process::Stdio;
 use tokio::fs::OpenOptions;
 use tokio::io::{stdin, stdout, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio::join;
 use tokio::process as proc;
 use tokio::runtime::Runtime;
-use tokio_tungstenite::connect_async;
+use tokio::{join, select};
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::tungstenite::Error as TsError;
+use tokio_tungstenite::{connect_async, MaybeTlsStream};
 use tracing::{error, warn};
 
 #[cfg(unix)]
@@ -26,6 +26,8 @@ use {
     },
     tempfile::tempdir,
 };
+
+const BUFFER_SIZE: usize = 1 << 16;
 
 #[derive(Clap, Debug)]
 struct CliArgs {
@@ -250,6 +252,8 @@ struct ConnectCommand {
     spectate: bool,
     #[clap(short, long, about = "Username for the game")]
     name: Option<String>,
+    #[clap(short, long, about = "Game password")]
+    password: Option<String>,
     #[clap(
         arg_enum,
         short,
@@ -320,7 +324,9 @@ impl ConnectCommand {
                     if self.spectate {
                         self.spectate(wsout, wsin, stdout()).await
                     } else {
-                        self.play(wsout, wsin, stdin(), stdout()).await
+                        let result = self.play(wsout, wsin, stdin(), stdout()).await;
+                        println!("> Press ENTER to exit");
+                        result
                     }
                 }
             }
@@ -420,11 +426,28 @@ impl ConnectCommand {
         }
     }
 
+    async fn print_update(info: &MatchInfo, last: &mut HashSet<String>) {
+        if info.connected != *last {
+            *last = info.connected.clone();
+            println!(
+                "> Game has {} spectator{} and {}/{} ({} bot{}) connected player{}: {:?}",
+                info.spectators,
+                if info.spectators == 1 { "" } else { "s" },
+                info.connected.len() + info.bots,
+                info.players,
+                info.bots,
+                if info.bots == 1 { "" } else { "s" },
+                if info.connected.len() == 1 { "" } else { "s" },
+                info.connected.iter().collect::<Vec<_>>()
+            );
+        }
+    }
+
     async fn play<
         T: Sink<Message> + Unpin,
         U: Stream<Item = Result<Message, TsError>> + Unpin,
-        X: AsyncRead,
-        Y: AsyncWrite,
+        X: AsyncRead + Unpin,
+        Y: AsyncWrite + Unpin,
     >(
         self,
         wsout: &mut T,
@@ -435,23 +458,169 @@ impl ConnectCommand {
     where
         <T as Sink<Message>>::Error: Display,
     {
-        todo!()
+        let request = Request::LobbyJoinMatch {
+            id: self.id.clone(),
+            name: self.name.clone().unwrap_or_else(|| whoami::username()),
+            password: self.password.clone(),
+        };
+        let info = match oneshot_request(request, wsout, wsin).await {
+            Ok(Reply::LobbyJoinedMatch { info: Ok(x) }) => x,
+            Ok(Reply::LobbyJoinedMatch { info: Err(x) }) => {
+                return Err(format!("Cannot join game: {}", x))
+            }
+            Ok(_) => return Err(format!("Server sent wrong reply")),
+            Err(x) => return Err(x),
+        };
+        let mut last_connected = HashSet::new();
+        println!("> Joined \"{}\" ({})", info.name, info.game);
+        println!("> Waiting for game to start");
+        Self::print_update(&info, &mut last_connected).await;
+        loop {
+            let msg = match wsin.next().await {
+                Some(x) => x,
+                None => break Err(format!("Connection lost")),
+            };
+            let msg = match msg {
+                Ok(Message::Text(x)) => x,
+                Ok(_) => continue,
+                Err(x) => break Err(format!("Connection lost: {}", x)),
+            };
+            match Reply::parse(&msg) {
+                Ok(Reply::MatchStarted {}) => {
+                    println!("> Game started");
+                    break self.ingame(wsout, wsin, pipein, pipeout).await;
+                }
+                Ok(Reply::LobbyUpdate { info }) => {
+                    Self::print_update(&info, &mut last_connected).await
+                }
+                Ok(Reply::LobbyDelete { .. }) => break Err(format!("Game expired")),
+                Ok(_) => break Err(format!("Received wrong message from server: {:?}", msg)),
+                Err(x) => break Err(format!("Cannot parse server reply: {}", x)),
+            }
+        }
+    }
+
+    async fn ingame<
+        T: Sink<Message> + Unpin,
+        U: Stream<Item = Result<Message, TsError>> + Unpin,
+        X: AsyncRead + Unpin,
+        Y: AsyncWrite + Unpin,
+    >(
+        self,
+        wsout: &mut T,
+        wsin: &mut U,
+        mut pipein: X,
+        mut pipeout: Y,
+    ) -> Result<(), String>
+    where
+        <T as Sink<Message>>::Error: Display,
+    {
+        let mut buffer = [0; BUFFER_SIZE];
+        loop {
+            select! {
+                msg = wsin.next() => {
+                    let msg = match msg {
+                        Some(Ok(Message::Text(x))) => x,
+                        Some(Ok(Message::Binary(x))) => {
+                            if let Err(x) = pipeout.write_all(&x).await {
+                                break Err(format!("Cannot write to stream: {}", x));
+                            }
+                            if let Err(x) = pipeout.flush().await {
+                                warn!("Cannot flush stream: {}", x);
+                            }
+                            continue;
+                        }
+                        Some(Ok(_)) => continue,
+                        Some(Err(x)) => break Err(format!("Connection lost: {}", x)),
+                        None => break Err(format!("Connection lost")),
+                    };
+                    match Reply::parse(&msg) {
+                        Ok(Reply::MatchEnded {}) => {
+                            println!("> Game ended");
+                            break Ok(());
+                        }
+                        Ok(Reply::LobbyUpdate { .. }) => {}
+                        Ok(_) => break Err(format!("Received wrong message from server: {:?}", msg)),
+                        Err(x) => break Err(format!("Cannot parse server reply: {}", x)),
+                    }
+                }
+                res = pipein.read(&mut buffer) => {
+                    let size = match res {
+                        Ok(0) => {
+                            warn!("Read 0 bytes from stream");
+                            continue;
+                        }
+                        Ok(x) => x,
+                        Err(x) => break Err(format!("Cannot read from stream: {}", x)),
+                    };
+                    if let Err(x) = wsout.send(Message::Binary(buffer[..size].into())).await {
+                        break Err(format!("Cannot send game data to server: {}", x));
+                    }
+                }
+            }
+        }
     }
 
     async fn spectate<
         T: Sink<Message> + Unpin,
         U: Stream<Item = Result<Message, TsError>> + Unpin,
-        Y: AsyncWrite,
+        Y: AsyncWrite + Unpin,
     >(
         self,
         wsout: &mut T,
         wsin: &mut U,
-        pipeout: Y,
+        mut pipeout: Y,
     ) -> Result<(), String>
     where
         <T as Sink<Message>>::Error: Display,
     {
-        todo!()
+        let reply = oneshot_request(Request::SpectateJoin { id: self.id }, wsout, wsin);
+        let info = match reply.await {
+            Ok(Reply::SpectateJoined { info: Ok(x) }) => x,
+            Ok(Reply::SpectateJoined { info: Err(x) }) => {
+                return Err(format!("Spectate join failed: {}", x))
+            }
+            Ok(_) => return Err(format!("Server sent wrong reply")),
+            Err(x) => return Err(x),
+        };
+        let mut last_connected = HashSet::new();
+        println!("> Joined spectators for \"{}\" ({})", info.name, info.game);
+        println!("> Waiting for game to start");
+        Self::print_update(&info, &mut last_connected).await;
+        loop {
+            let msg = match wsin.next().await {
+                Some(x) => x,
+                None => break Err(format!("Connection lost")),
+            };
+            let msg = match msg {
+                Ok(Message::Text(x)) => x,
+                Ok(Message::Binary(x)) => {
+                    if let Err(x) = pipeout.write_all(&x).await {
+                        break Err(format!("Cannot write to spectator stream: {}", x));
+                    }
+                    if let Err(x) = pipeout.flush().await {
+                        warn!("Cannot flush to spectator stream: {}", x);
+                    }
+                    continue;
+                }
+                Ok(_) => continue,
+                Err(x) => break Err(format!("Connection lost: {}", x)),
+            };
+            match Reply::parse(&msg) {
+                Ok(Reply::SpectateStarted {}) => println!("> Game started"),
+                Ok(Reply::SpectateSynced {}) => println!("> Reached current game status"),
+                Ok(Reply::SpectateEnded {}) | Ok(Reply::SpectateLeaved {}) => {
+                    println!("> Game ended");
+                    break Ok(());
+                }
+                Ok(Reply::LobbyUpdate { info }) => {
+                    Self::print_update(&info, &mut last_connected).await
+                }
+                Ok(Reply::LobbyDelete { .. }) => break Err(format!("Game expired")),
+                Ok(_) => break Err(format!("Received wrong message from server: {:?}", msg)),
+                Err(x) => break Err(format!("Cannot parse server reply: {}", x)),
+            }
+        }
     }
 }
 
@@ -474,6 +643,14 @@ async fn start(args: CliArgs) -> Result<(), String> {
         Ok(x) => x.0,
         Err(x) => return Err(format!("Cannot connect to \"{}\": {}", args.server_url, x)),
     };
+    let result = match ws.get_mut() {
+        &mut MaybeTlsStream::Plain(ref mut x) => x.set_nodelay(true),
+        &mut MaybeTlsStream::Rustls(ref mut x) => x.get_mut().0.set_nodelay(true),
+        &mut _ => unreachable!("Using stream other than Plain or Rustls"),
+    };
+    if let Err(x) = result {
+        warn!("Cannot set TCP_NODELAY: {}", x);
+    }
     let (mut wsout, mut wsin) = ws.split();
     let handshake_request = match Request::forge(&Request::Handshake {
         magic: proto::MAGIC.to_string(),

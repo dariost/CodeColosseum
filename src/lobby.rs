@@ -39,6 +39,21 @@ macro_rules! decode {
     }};
 }
 
+macro_rules! decode2 {
+    ($s:expr, $stream:expr) => {{
+        match decode($s) {
+            Ok(x) => x,
+            Err(x) => {
+                warn!("{}", x);
+                if let Err(_) = $stream.send(Err(format!("{}", x))) {
+                    warn!("Cannot send back error message");
+                }
+                continue;
+            }
+        }
+    }};
+}
+
 macro_rules! gen_unique_id {
     ($rng:expr, $map:expr) => {{
         let mut id = $rng.gen();
@@ -158,6 +173,17 @@ macro_rules! match_update {
     }};
 }
 
+macro_rules! match_expired {
+    ($m:expr) => {{
+        for (id, tx) in $m.players.iter() {
+            if let Err(_) = tx.send(MatchEvent::Expired).await {
+                warn!("Cannot send expiration notification to \"{}\"", id);
+            }
+        }
+        drop($m.spectators.send(MatchEvent::Expired));
+    }};
+}
+
 macro_rules! matches_info {
     ($matches:expr) => {{
         $matches.values().map(|x| x.info.clone()).collect()
@@ -210,7 +236,10 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     let eid = encode(id);
                     info!("Reaping match {} for inactivity", eid);
                     match matches.remove(&id) {
-                        Some(_) => send_event!(event_tx, Event::Delete(eid)),
+                        Some(m) => {
+                            match_expired!(m);
+                            send_event!(event_tx, Event::Delete(eid))
+                        }
                         None => error!("BTreeMap consistency error"),
                     };
                 }
@@ -251,7 +280,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     send_event!(event_tx, Event::Update(m.info.clone()));
                 }
                 Command::SpectateMatch(tx, id) => {
-                    let eid = decode!(&id);
+                    let eid = decode2!(&id, tx);
                     let m = match matches.get_mut(&eid) {
                         Some(x) => x,
                         None => {
@@ -287,7 +316,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     send_event!(event_tx, Event::Update(m.info.clone()));
                 }
                 Command::LeaveMatch(tx, id, name) => {
-                    let eid = decode!(&id);
+                    let eid = decode2!(&id, tx);
                     let m = match matches.get_mut(&eid) {
                         Some(x) if !x.players.contains_key(&name) => {
                             send!(tx, Err(format!("\"{}\" is not in this game", name)));
@@ -315,7 +344,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                     send_event!(event_tx, Event::Update(m.info.clone()));
                 }
                 Command::JoinMatch(tx, id, name, password, ctx) => {
-                    let eid = decode!(&id);
+                    let eid = decode2!(&id, tx);
                     if !username_regex.is_match(&name) {
                         send!(tx, Err(format!("\"{}\" is not a valid username", name)));
                         continue;
