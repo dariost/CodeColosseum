@@ -141,7 +141,7 @@ pub(crate) async fn start(args: crate::CliArgs) {
         tcp_listener(args, services).await
     };
     #[cfg(not(unix))]
-    let result = tcp_listener(opts, services).await;
+    let result = tcp_listener(args, services).await;
     match result {
         Ok(()) => {}
         Err(x) => error!("Fatal error: {}", x),

@@ -10,11 +10,11 @@ use prettytable::{Attr, Cell, Row, Table};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::process::Stdio;
-use tokio::fs::OpenOptions;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::io::{stdin, stdout, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::process as proc;
 use tokio::runtime::Runtime;
-use tokio::{join, select};
+use tokio::select;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::tungstenite::Error as TsError;
 use tokio_tungstenite::{connect_async, MaybeTlsStream};
@@ -27,6 +27,7 @@ use {
         unistd::{mkfifo, Pid},
     },
     tempfile::tempdir,
+    tokio::{fs::OpenOptions, join},
 };
 
 const BUFFER_SIZE: usize = 1 << 16;
@@ -153,6 +154,20 @@ impl ListCommand {
 struct LobbyCommand {}
 
 impl LobbyCommand {
+    fn pretty_time_diff(a: &SystemTime, b: &SystemTime) -> String {
+        if let Ok(x) = a.duration_since(*b) {
+            let x = x.as_secs();
+            if x >= 3600 {
+                format!("{}h{}m{}s", x / 3600, (x % 3600) / 60, x % 60)
+            } else if x >= 60 {
+                format!("{}m{}s", x / 60, x % 60)
+            } else {
+                format!("{}s", x)
+            }
+        } else {
+            String::from("???")
+        }
+    }
     async fn run<T: Sink<Message> + Unpin, U: Stream<Item = Result<Message, TsError>> + Unpin>(
         self,
         wsout: &mut T,
@@ -168,7 +183,15 @@ impl LobbyCommand {
         };
         let mut table = Table::new();
         const FIELDS: &[&str] = &[
-            "ID", "Verified", "Name", "Game", "Players", "Timeout", "Password", "Running",
+            "ID",
+            "Verified",
+            "Name",
+            "Game",
+            "Players",
+            "Spectators",
+            "Timeout",
+            "Password",
+            "Timing",
         ];
         table.add_row(Row::new(
             FIELDS
@@ -176,7 +199,9 @@ impl LobbyCommand {
                 .map(|x| Cell::new_align(x, CENTER).with_style(Attr::Bold))
                 .collect(),
         ));
+        let now = SystemTime::now();
         for game in info {
+            let gametime = UNIX_EPOCH + Duration::from_secs(game.time);
             table.add_row(Row::new(vec![
                 Cell::new_align(&game.id, CENTER),
                 Cell::new_align(if game.verified { "X" } else { "" }, CENTER),
@@ -186,9 +211,17 @@ impl LobbyCommand {
                     &format!("{}/{}", game.connected.len() + game.bots, game.players),
                     CENTER,
                 ),
+                Cell::new_align(&format!("{}", game.spectators), CENTER),
                 Cell::new_align(&format!("{}", game.timeout), CENTER),
                 Cell::new_align(if game.password { "X" } else { "" }, CENTER),
-                Cell::new_align(if game.running { "X" } else { "" }, CENTER),
+                Cell::new_align(
+                    &if game.running {
+                        format!("Running for {}", Self::pretty_time_diff(&now, &gametime))
+                    } else {
+                        format!("Expires in {}", Self::pretty_time_diff(&gametime, &now))
+                    },
+                    CENTER,
+                ),
             ]));
         }
         table.printstd();
