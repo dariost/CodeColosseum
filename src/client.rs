@@ -5,6 +5,7 @@ use clap::Clap;
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
 use futures_util::{SinkExt, StreamExt};
+use prettytable::format::Alignment::CENTER;
 use prettytable::{Attr, Cell, Row, Table};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
@@ -167,27 +168,27 @@ impl LobbyCommand {
         };
         let mut table = Table::new();
         const FIELDS: &[&str] = &[
-            "ID", "Verified", "Name", "Game", "Players", "Password", "Running",
+            "ID", "Verified", "Name", "Game", "Players", "Timeout", "Password", "Running",
         ];
         table.add_row(Row::new(
             FIELDS
                 .iter()
-                .map(|x| Cell::new(x).with_style(Attr::Bold))
+                .map(|x| Cell::new_align(x, CENTER).with_style(Attr::Bold))
                 .collect(),
         ));
         for game in info {
             table.add_row(Row::new(vec![
-                Cell::new(&game.id),
-                Cell::new(if game.verified { "   X    " } else { "" }),
-                Cell::new(&game.name),
-                Cell::new(&game.game),
-                Cell::new(&format!(
-                    "{}/{}",
-                    game.connected.len() + game.bots,
-                    game.players
-                )),
-                Cell::new(if game.password { "   X    " } else { "" }),
-                Cell::new(if game.running { "   X   " } else { "" }),
+                Cell::new_align(&game.id, CENTER),
+                Cell::new_align(if game.verified { "X" } else { "" }, CENTER),
+                Cell::new_align(&game.name, CENTER),
+                Cell::new_align(&game.game, CENTER),
+                Cell::new_align(
+                    &format!("{}/{}", game.connected.len() + game.bots, game.players),
+                    CENTER,
+                ),
+                Cell::new_align(&format!("{}", game.timeout), CENTER),
+                Cell::new_align(if game.password { "X" } else { "" }, CENTER),
+                Cell::new_align(if game.running { "X" } else { "" }, CENTER),
             ]));
         }
         table.printstd();

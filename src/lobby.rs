@@ -234,7 +234,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                 }
                 if must_remove {
                     let eid = encode(id);
-                    info!("Reaping match {} for inactivity", eid);
+                    info!("Reaping match for inactivity: {}", eid);
                     match matches.remove(&id) {
                         Some(m) => {
                             match_expired!(m);
@@ -523,6 +523,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                         spectators: broadcast::channel(BROADCAST_BUFFER).0,
                         play: None,
                     };
+                    info!("Game of \"{}\" created: {}", data.info.game, encode(id));
                     matches.insert(id, data);
                     send_event!(event_tx, Event::New(info));
                     send!(tx, Ok(encode(id)));
