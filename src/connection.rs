@@ -1,6 +1,6 @@
 use crate::master::Services;
 use crate::proto::{self, Reply, Request};
-use crate::tuning::{CHUNK_SIZE, PIPE_BUFFER, QUEUE_BUFFER};
+use crate::tuning::{CHUNK_SIZE, PING_TIMEOUT, PIPE_BUFFER, QUEUE_BUFFER};
 use crate::{game, lobby};
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
@@ -10,6 +10,7 @@ use tokio::io::{split, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, Duple
 use tokio::select;
 use tokio::sync::broadcast::error::RecvError as BrRecvError;
 use tokio::sync::{mpsc, oneshot};
+use tokio::time::{timeout, Duration};
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::tungstenite::Error as TsError;
 use tokio_tungstenite::WebSocketStream;
@@ -128,6 +129,27 @@ macro_rules! oneshot_reply2 {
     }};
 }
 
+macro_rules! handle_ping {
+    ($msg:expr, $wsout:expr) => {{
+        match $msg {
+            Ok(x) => x,
+            Err(_) => match $wsout.send(Message::Ping(Vec::new())).await {
+                Ok(()) => continue,
+                Err(x) => {
+                    error!("Cannot send ping: {}", x);
+                    break;
+                }
+            },
+        }
+    }};
+}
+
+macro_rules! wsrecv {
+    ($wsin:expr) => {{
+        timeout(Duration::from_secs_f64(PING_TIMEOUT), $wsin.next())
+    }};
+}
+
 impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
     pub(crate) fn new(ws: WebSocketStream<T>, addr: String, srv: Services) -> Client<T> {
         Client { ws, addr, srv }
@@ -137,7 +159,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
     pub(crate) async fn start(mut self, address: &str) {
         info!("Client connected");
         let (mut wsout, mut wsin) = self.ws.split();
-        while let Some(msg) = wsin.next().await {
+        loop {
+            let msg = wsrecv!(wsin).await;
+            let msg = match handle_ping!(msg, wsout) {
+                Some(x) => x,
+                None => break,
+            };
             match msg {
                 Ok(Message::Text(msg)) => match Request::parse(&msg) {
                     Ok(Request::Handshake { magic, version }) => {
@@ -171,7 +198,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
     async fn main(mut self) {
         let (mut wsout, mut wsin) = self.ws.split();
         loop {
-            let msg = match wsin.next().await {
+            let msg = match handle_ping!(wsrecv!(wsin).await, wsout) {
                 Some(Ok(Message::Text(x))) => x,
                 Some(Ok(_)) => continue,
                 Some(Err(x)) => {
@@ -292,8 +319,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
         }
         loop {
             select! {
-                msg = wsin.next() => {
-                    let msg = match msg {
+                msg = wsrecv!(wsin) => {
+                    let msg = match handle_ping!(msg, wsout) {
                         Some(Ok(Message::Text(x))) => x,
                         Some(_) => continue,
                         None => {
@@ -386,8 +413,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
         };
         loop {
             select! {
-                msg = wsin.next() => {
-                    let msg = match msg {
+                msg = wsrecv!(wsin) => {
+                    let msg = match handle_ping!(msg, wsout) {
                         Some(Ok(Message::Text(x))) => x,
                         Some(_) => continue,
                         None => {
@@ -453,8 +480,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
         let mut buffer = [0; PIPE_BUFFER];
         loop {
             select! {
-                msg = wsin.next() => {
-                    let msg = match msg {
+                msg = wsrecv!(wsin) => {
+                    let msg = match handle_ping!(msg, wsout) {
                         Some(Ok(Message::Binary(x))) => x,
                         Some(Ok(Message::Text(_))) => {
                             warn!("Client sent command while playing, ignoring");
@@ -513,8 +540,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
         send2!(wsout, Reply::LobbySubscribed { seed });
         loop {
             select! {
-                msg = wsin.next() => {
-                    let msg = match msg {
+                msg = wsrecv!(wsin) => {
+                    let msg = match handle_ping!(msg, wsout) {
                         Some(Ok(Message::Text(x))) => x,
                         Some(_) => continue,
                         None => break,

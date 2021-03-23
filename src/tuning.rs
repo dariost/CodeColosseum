@@ -11,3 +11,4 @@ pub(crate) const MAX_TIMEOUT: f64 = 600.0;
 pub(crate) const INSTANCE_LIFETIME: f64 = 600.0;
 pub(crate) const CHUNK_SIZE: usize = 1 << 20;
 pub(crate) const END_GRACE_PERIOD: f64 = 0.25;
+pub(crate) const PING_TIMEOUT: f64 = 25.0;
