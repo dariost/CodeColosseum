@@ -1,0 +1,6 @@
+[book]
+authors = ["Dario Ostuni"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Code Colosseum"
