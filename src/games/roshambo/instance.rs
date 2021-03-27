@@ -1,10 +1,10 @@
+use super::super::util::Player;
 use crate::game;
 use async_trait::async_trait;
+use rand::rngs::StdRng;
 use std::collections::HashMap;
 use std::time::Duration;
-use tokio::io::{
-    split, AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, ReadHalf, WriteHalf,
-};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, DuplexStream, WriteHalf};
 use tokio::join;
 use tokio::time::{sleep_until, timeout, Instant};
 use tracing::warn;
@@ -14,12 +14,7 @@ pub(crate) struct Instance {
     pub(crate) rounds: usize,
     pub(crate) timeout: f64,
     pub(crate) pace: f64,
-}
-
-struct Player {
-    name: String,
-    input: BufReader<ReadHalf<DuplexStream>>,
-    output: WriteHalf<DuplexStream>,
+    pub(crate) rng: StdRng,
 }
 
 macro_rules! process {
@@ -43,23 +38,15 @@ impl game::Instance for Instance {
         players: HashMap<String, DuplexStream>,
         mut spectators: WriteHalf<DuplexStream>,
     ) {
-        let mut p = Vec::new();
-        for (name, stream) in players.into_iter() {
-            let (r, w) = split(stream);
-            lnout2!(spectators, &name);
-            p.push(Player {
-                name: name,
-                input: BufReader::new(r),
-                output: w,
-            });
-        }
-        lnout2!(spectators, format!("{}", self.rounds));
+        let mut p = Player::from(players, &mut self.rng);
         assert_eq!(p.len(), 2);
         for i in 0..2 {
+            lnout2!(spectators, &p[i].name);
             lnout2!(p[i].output, &p[i].name);
             lnout2!(p[i].output, &p[1 - i].name);
             lnout2!(p[i].output, format!("{}", self.rounds));
         }
+        lnout2!(spectators, format!("{}", self.rounds));
         let tout = Duration::from_secs_f64(self.timeout);
         let pace = Duration::from_secs_f64(self.pace);
         let mut p1 = p.pop().expect("Cannot fail");
