@@ -69,7 +69,10 @@ impl Board {
                     }
                     None => Some(Position::Board(row, col)),
                 },
-                Position::End(p) => Some(Position::End(p)),
+                Position::End(p) => match dist {
+                    0 => None,
+                    _ => Some(Position::End(p)),
+                },
             },
             None => None,
         }
