@@ -12,6 +12,7 @@ before_script:
   - cargo install-update -a
 
 script:
+  - echo -n "doc.colosseum.cf" > CNAME
   - mdbook build doc && mdbook test doc
 
 deploy:
