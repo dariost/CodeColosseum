@@ -37,3 +37,16 @@ macro_rules! lnin {
         }
     }};
 }
+
+macro_rules! lnout2 {
+    ($stream:expr, $msg:expr) => {{
+        let msg = String::from($msg) + "\n";
+        match $stream.write_all(msg.as_bytes()).await {
+            Ok(_) => true,
+            Err(x) => {
+                warn!("Cannot write to stream: {}", x);
+                false
+            }
+        }
+    }};
+}
