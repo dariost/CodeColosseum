@@ -22,19 +22,6 @@ struct Player {
     output: WriteHalf<DuplexStream>,
 }
 
-macro_rules! lnout {
-    ($stream:expr, $msg:expr) => {{
-        let msg = String::from($msg) + "\n";
-        match $stream.write_all(msg.as_bytes()).await {
-            Ok(_) => true,
-            Err(x) => {
-                warn!("Cannot write to stream: {}", x);
-                false
-            }
-        }
-    }};
-}
-
 macro_rules! process {
     ($result:expr, $line:expr) => {{
         match $result {
@@ -59,19 +46,19 @@ impl game::Instance for Instance {
         let mut p = Vec::new();
         for (name, stream) in players.into_iter() {
             let (r, w) = split(stream);
-            lnout!(spectators, &name);
+            lnout2!(spectators, &name);
             p.push(Player {
                 name: name,
                 input: BufReader::new(r),
                 output: w,
             });
         }
-        lnout!(spectators, format!("{}", self.rounds));
+        lnout2!(spectators, format!("{}", self.rounds));
         assert_eq!(p.len(), 2);
         for i in 0..2 {
-            lnout!(p[i].output, &p[i].name);
-            lnout!(p[i].output, &p[1 - i].name);
-            lnout!(p[i].output, format!("{}", self.rounds));
+            lnout2!(p[i].output, &p[i].name);
+            lnout2!(p[i].output, &p[1 - i].name);
+            lnout2!(p[i].output, format!("{}", self.rounds));
         }
         let tout = Duration::from_secs_f64(self.timeout);
         let pace = Duration::from_secs_f64(self.pace);
@@ -90,26 +77,26 @@ impl game::Instance for Instance {
             sleep_until(start + pace).await;
             match (r0, r1) {
                 (Some(x), Some(y)) => {
-                    lnout!(p1.output, x);
-                    lnout!(spectators, x);
-                    lnout!(p0.output, y);
-                    lnout!(spectators, y);
+                    lnout2!(p1.output, x);
+                    lnout2!(spectators, x);
+                    lnout2!(p0.output, y);
+                    lnout2!(spectators, y);
                 }
                 (None, Some(y)) => {
-                    lnout!(p1.output, "RETIRE");
-                    lnout!(spectators, "RETIRE");
-                    lnout!(spectators, y);
+                    lnout2!(p1.output, "RETIRE");
+                    lnout2!(spectators, "RETIRE");
+                    lnout2!(spectators, y);
                     break;
                 }
                 (Some(x), None) => {
-                    lnout!(p0.output, "RETIRE");
-                    lnout!(spectators, x);
-                    lnout!(spectators, "RETIRE");
+                    lnout2!(p0.output, "RETIRE");
+                    lnout2!(spectators, x);
+                    lnout2!(spectators, "RETIRE");
                     break;
                 }
                 (None, None) => {
-                    lnout!(spectators, "RETIRE");
-                    lnout!(spectators, "RETIRE");
+                    lnout2!(spectators, "RETIRE");
+                    lnout2!(spectators, "RETIRE");
                     break;
                 }
             };
