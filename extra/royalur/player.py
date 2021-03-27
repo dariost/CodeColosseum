@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from os import environ
-from spectator import Board
+from board import Board
 from random import choice
 from sys import stdout, stdin
 
