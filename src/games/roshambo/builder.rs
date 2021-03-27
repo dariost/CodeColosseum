@@ -4,6 +4,8 @@ use crate::game;
 use crate::games;
 use async_trait::async_trait;
 use games::util::arg;
+use rand::rngs::{OsRng, StdRng};
+use rand::SeedableRng;
 use std::collections::HashMap;
 
 const DEFAULT_TIMEOUT: f64 = 30.0;
@@ -49,10 +51,15 @@ impl game::Builder for Builder {
             Ok(x) => x,
             Err(x) => return Err(format!("Invaid pace: {}", x)),
         };
+        let rng = match StdRng::from_rng(OsRng) {
+            Ok(x) => x,
+            Err(x) => return Err(format!("Cannot initialize PRNG: {}", x)),
+        };
         Ok(Box::new(Instance {
             rounds: rounds,
             timeout: param.timeout.expect("Cannot fail"),
             pace: pace,
+            rng: rng,
         }))
     }
     async fn gen_bot(&self) -> Box<dyn game::Bot> {
