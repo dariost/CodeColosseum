@@ -1,13 +1,11 @@
+use super::super::util::Player;
 use super::logic::Board;
 use crate::game;
 use async_trait::async_trait;
-use rand::rngs::{OsRng, StdRng};
-use rand::seq::SliceRandom;
-use rand::{Rng, SeedableRng};
+use rand::rngs::StdRng;
+use rand::Rng;
 use std::collections::HashMap;
-use tokio::io::{
-    split, AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, ReadHalf, WriteHalf,
-};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, DuplexStream, WriteHalf};
 use tokio::time::{sleep_until, timeout, Duration, Instant};
 use tracing::warn;
 
@@ -15,12 +13,7 @@ use tracing::warn;
 pub(crate) struct Instance {
     pub(crate) timeout: Duration,
     pub(crate) pace: Duration,
-}
-
-struct Player {
-    name: String,
-    input: BufReader<ReadHalf<DuplexStream>>,
-    output: WriteHalf<DuplexStream>,
+    pub(crate) rng: StdRng,
 }
 
 macro_rules! retired {
@@ -39,20 +32,8 @@ impl game::Instance for Instance {
         mut spectators: WriteHalf<DuplexStream>,
     ) {
         let mut board = Board::new();
-        let mut rng = StdRng::from_rng(OsRng).expect("Cannot initialize PRNG");
-        let mut p = Vec::new();
-        // Collect players
-        for (name, stream) in players.into_iter() {
-            let (r, w) = split(stream);
-            p.push(Player {
-                name: name,
-                input: BufReader::new(r),
-                output: w,
-            });
-        }
+        let mut p = Player::from(players, &mut self.rng);
         assert_eq!(p.len(), 2);
-        // Randomize playing order
-        p.shuffle(&mut rng);
         // Send names in order
         for i in 0..2 {
             lnout2!(p[0].output, &p[i].name);
@@ -66,7 +47,7 @@ impl game::Instance for Instance {
         while !board.finished() {
             let start = Instant::now();
             // Generate dice roll
-            let d: Vec<_> = (0..4).map(|_| rng.gen::<bool>() as usize).collect();
+            let d: Vec<_> = (0..4).map(|_| self.rng.gen::<bool>() as usize).collect();
             let roll = d.iter().sum::<usize>();
             let d: Vec<_> = d.into_iter().map(|x| format!("{}", x)).collect();
             let d = d.join(" ");

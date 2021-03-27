@@ -4,6 +4,8 @@ use crate::game;
 use crate::games;
 use async_trait::async_trait;
 use games::util::arg;
+use rand::rngs::{OsRng, StdRng};
+use rand::SeedableRng;
 use std::collections::HashMap;
 use tokio::time::Duration;
 
@@ -43,9 +45,14 @@ impl game::Builder for Builder {
             Ok(x) => x,
             Err(x) => return Err(format!("Invaid pace: {}", x)),
         };
+        let rng = match StdRng::from_rng(OsRng) {
+            Ok(x) => x,
+            Err(x) => return Err(format!("Cannot initialize PRNG: {}", x)),
+        };
         Ok(Box::new(Instance {
             timeout: Duration::from_secs_f64(param.timeout.expect("Cannot fail")),
             pace: Duration::from_secs_f64(pace),
+            rng: rng,
         }))
     }
     async fn gen_bot(&self) -> Box<dyn game::Bot> {
