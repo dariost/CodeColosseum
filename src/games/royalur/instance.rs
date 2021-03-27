@@ -55,6 +55,13 @@ impl game::Instance for Instance {
             lnout2!(p[0].output, &d);
             lnout2!(p[1].output, &d);
             lnout2!(spectators, &d);
+            if board.valid_moves(turn, roll).len() == 0 {
+                // The current player has no valid moves
+                turn = 1 - turn;
+                // Keep the pace
+                sleep_until(start + self.pace).await;
+                continue;
+            }
             // Read move
             let mut buffer = String::new();
             let token = match timeout(self.timeout, p[turn].input.read_line(&mut buffer)).await {
@@ -84,7 +91,10 @@ impl game::Instance for Instance {
                     }
                 }
                 // Wrong move
-                Err(_) => retired!(p[1 - turn].output, spectators),
+                Err(x) => {
+                    warn!("Wrong move: {}", x);
+                    retired!(p[1 - turn].output, spectators);
+                }
             }
             // Give turn to other player
             turn = 1 - turn;
