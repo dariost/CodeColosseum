@@ -1,3 +1,6 @@
+#[macro_use]
+mod util;
+
 mod roshambo;
 
 use crate::game::Builder;
