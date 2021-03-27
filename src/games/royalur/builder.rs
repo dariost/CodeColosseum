@@ -5,9 +5,10 @@ use crate::games;
 use async_trait::async_trait;
 use games::util::arg;
 use std::collections::HashMap;
+use tokio::time::Duration;
 
 const DEFAULT_TIMEOUT: f64 = 90.0;
-const DEFAULT_PACE: f64 = 3.0;
+const DEFAULT_PACE: f64 = 1.5;
 
 #[derive(Debug)]
 pub(crate) struct Builder {}
@@ -43,8 +44,8 @@ impl game::Builder for Builder {
             Err(x) => return Err(format!("Invaid pace: {}", x)),
         };
         Ok(Box::new(Instance {
-            timeout: param.timeout.expect("Cannot fail"),
-            pace: pace,
+            timeout: Duration::from_secs_f64(param.timeout.expect("Cannot fail")),
+            pace: Duration::from_secs_f64(pace),
         }))
     }
     async fn gen_bot(&self) -> Box<dyn game::Bot> {

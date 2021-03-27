@@ -15,6 +15,7 @@ The resulting binaries will be found in the directory `target/release/`.
 Currently implemented games are:
 
 - `roshambo` (Rock Paper Scissors)
+- `royalur` (Royal Game of Ur)
 
 ### License
 
