@@ -9,7 +9,7 @@ if __name__ == "__main__":
     pipe = environ.get("COCO_PIPEIN")
     fin = stdin if pipe is None else open(pipe, "r")
     p = [fin.readline().strip() for _ in range(2)]
-    print("Game of Royal Ur")
+    print("Royal Game of Ur")
     print()
     print(f"{p[0]} vs {p[1]}")
     print()

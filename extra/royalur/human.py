@@ -9,7 +9,7 @@ if __name__ == "__main__":
     fout = open(environ["COCO_PIPEOUT"], "w")
     p = [fin.readline().strip() for _ in range(2)]
     me = int(fin.readline().strip())
-    print("Game of Royal Ur")
+    print("Royal Game of Ur")
     print()
     print(f"{p[0]} vs {p[1]}")
     print()
