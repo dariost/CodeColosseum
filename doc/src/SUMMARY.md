@@ -1,3 +1,17 @@
 # Summary
 
-- [Code Colosseum](./code-colosseum.md)
+- [Code Colosseum](./coco.md)
+  - [Architecture](./coco/arch.md)
+  - [Lobby and Games](./coco/lobby.md)
+- [Command Line Client]()
+  - [list]()
+  - [lobby]()
+  - [new]()
+  - [connect]()
+    - [stdio]()
+    - [pipe]()
+- [Games]()
+  - [roshambo](./games/roshambo.md)
+- [Server Setup]()
+- [Writing a Game]()
+- [Network Protocol]()

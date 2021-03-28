@@ -1,0 +1,1 @@
+../../../src/games/roshambo/description.md
