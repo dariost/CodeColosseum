@@ -11,5 +11,6 @@ create programs to play its games. It also provides the descriptions of currentl
 supported games.
 
 ## License
+
 **Code Colosseum** is free software. It's released under the
 [Mozilla Public License v2.0](https://www.mozilla.org/MPL/2.0/).
