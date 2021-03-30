@@ -10,7 +10,7 @@
   - [connect](./cli/connect.md)
     - [stdio](./cli/stdio.md)
     - [pipe](./cli/pipe.md)
-- [Games]()
+- [Games](./games.md)
   - [roshambo](./games/roshambo.md)
 - [Server Setup]()
 - [Writing a Game]()
