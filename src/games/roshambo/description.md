@@ -16,21 +16,21 @@ Both players and the spectators will receive three lines at the beginning of the
 For instance, if there are two players `Player0` and `Player1` in a match with `42` rounds, then:
 
 `Player0` will receive:
-```
+```text
 Player0
 Player1
 42
 ```
 
 `Player1` will receive:
-```
+```text
 Player1
 Player0
 42
 ```
 
 Spectators will receive:
-```
+```text
 Player0
 Player1
 42
@@ -43,19 +43,19 @@ Spectators will receive for each round two lines containing the choice of the tw
 For instance, if in a round `Player0` chooses `ROCK` and `Player1` chooses `PAPER`, then (sent lines are prefixed with a `>`):
 
 `Player0` will receive:
-```
+```text
 >ROCK
 PAPER
 ```
 
 `Player1` will receive:
-```
+```text
 >PAPER
 ROCK
 ```
 
 Spectators will receive:
-```
+```text
 ROCK
 PAPER
 ```
@@ -63,7 +63,7 @@ PAPER
 A complete game can look like this:
 
 `Player0` will receive:
-```
+```text
 Player0
 Player1
 3
@@ -76,7 +76,7 @@ SCISSORS
 ```
 
 `Player1` will receive:
-```
+```text
 Player1
 Player0
 3
@@ -89,7 +89,7 @@ ROCK
 ```
 
 Spectators will receive:
-```
+```text
 Player0
 Player1
 3
