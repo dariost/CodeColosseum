@@ -7,13 +7,14 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, Gio
 from board import Board
 from os import environ
-from sys import exit
+from sys import exit, stderr
 from math import pi, sqrt
 
 class MainWindow(Gtk.Window):
-    def __init__(self, board, stream):
+    def __init__(self, stream):
         Gtk.Window.__init__(self, title="Royal Game of Ur")
-        self.board = board
+        self.names = []
+        self.board = None
         self.turn = 0
         self.roll = None
         self.turn_end = True
@@ -38,8 +39,15 @@ class MainWindow(Gtk.Window):
         ctx.select_font_face("sans-serif")
         FONT_HEIGHT = height / 25
         ctx.set_font_size(FONT_HEIGHT)
-        # Draw board
         ctx.set_source_rgba(*fc)
+        def print_centered(x, y, text):
+            (xs, ys, w, h, dx, dy) = ctx.text_extents(text)
+            ctx.move_to(x - w / 2, y + h / 2)
+            ctx.show_text(text)
+        if self.board is None:
+            print_centered(0.5 * width, 0.5 * height, "Waiting for game to start")
+            return
+        # Draw board
         ctx.set_line_width(width / 500)
         BX, BW = 0.2 * width, 0.6 * width
         CS = BW / 8
@@ -74,10 +82,6 @@ class MainWindow(Gtk.Window):
                     ctx.arc(BX + (c + 0.5) * CS, BY + (r + 0.5) * CS, CS * 0.25, 0, 2 * pi)
                     ctx.fill()
         # Draw info
-        def print_centered(x, y, text):
-            (xs, ys, w, h, dx, dy) = ctx.text_extents(text)
-            ctx.move_to(x - w / 2, y + h / 2)
-            ctx.show_text(text)
         ctx.set_source_rgba(*pc[self.turn])
         ctx.move_to(0.05 * width, 0.1 * height)
         ctx.show_text(f"Turn #{self.round}")
@@ -103,8 +107,16 @@ class MainWindow(Gtk.Window):
                 print_centered(0.5 * width, 0.9 * height, f"{self.board.name[self.turn]} rolled {sum(self.roll)}{' (cannot move)' if self.show_anyway else ''}")
 
     def read(self, stream, data, *args):
-        data = stream.read_line_finish_utf8(data)[0].strip()
-        if self.turn_end:
+        data = stream.read_line_finish_utf8(data)[0]
+        if data is None and self.board is None:
+            Gtk.main_quit()
+            return
+        data = data.strip()
+        if self.board is None:
+            self.names.append(data)
+            if len(self.names) == 2:
+                self.board = Board(*self.names)
+        elif self.turn_end:
             self.show_anyway = False
             self.round += 1
             self.turn_end = False
@@ -132,8 +144,6 @@ class MainWindow(Gtk.Window):
 
 if __name__ == "__main__":
     stream = Gio.DataInputStream.new(Gio.File.new_for_path(environ["COCO_PIPEIN"]).read())
-    p = [stream.read_line_utf8()[0].strip() for i in range(2)]
-    board = Board(*p)
-    window = MainWindow(board, stream)
+    window = MainWindow(stream)
     window.show_all()
     Gtk.main()
