@@ -12,6 +12,7 @@
     - [pipe](./cli/pipe.md)
 - [Games](./games.md)
   - [roshambo](./games/roshambo.md)
+  - [royalur](./games/royalur.md)
 - [Server Setup]()
 - [Writing a Game]()
 - [Network Protocol]()
