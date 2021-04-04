@@ -6,7 +6,7 @@ The Royal Game of Ur is one the oldest board games, dating back to at least 5000
 
 The Royal Game of Ur is a race game. Each player has 7 tokens, and it wants to send all tokens to the end of the track before the opponent does. Each player has a track of 14 cells (not counting start and end), with the cells from the fifth to the twelfth (included) shared between players. The game is played in turns alternating between the two players until one of them make all of their tokens exit the track, winning the game.
 
-At the start of its turn, the player flips 4 two-sided coins, which will give a number $n$ of heads. The player must then choose a token to move $n$ cells forward. For a token, to exit the track, the exact number of cells remaining is needed (e.g. if a token is on the fourteenth cell, only a $1$ can make it exit the track). If no moves are possible for the player (such as when getting a $0$, but it's not the only such case) then it skips the turn, giving it to the other player.
+At the start of its turn, the player flips 4 two-sided coins, which will give a number \\( n \\) of heads. The player must then choose a token to move \\( n \\) cells forward. For a token, to exit the track, the exact number of cells remaining is needed (e.g. if a token is on the fourteenth cell, only a \\( 1 \\) can make it exit the track). If no moves are possible for the player (such as when getting a \\( 0 \\), but it's not the only such case) then it skips the turn, giving it to the other player.
 
 The player cannot move a token in a cell already occupied by one of its token, however it can move it in a cell occupied by an opponent's token. In this case, the opponent's token gets instantly sent back to the opponent's track start, and the cell becomes occupied by the player token.
 
@@ -26,11 +26,11 @@ Each turn is subdivided into two sub-turns:
 - `roll`;
 - `move`.
 
-In the `roll` sub-turn both players and spectators will receive a single line containing 4 space-separated binary digits. The `1`s represent a head, the `0` a tail. The amount $n$ is calculated as the number of `1`s obtained.
+In the `roll` sub-turn both players and spectators will receive a single line containing 4 space-separated binary digits. The `1`s represent a head, the `0` a tail. The amount \\( n \\) is calculated as the number of `1`s obtained.
 
-If the player has no valid moves that move a token $n$ cells forward, the the `move` sub-turn is skipped and the `roll` sub-turn immediately starts for the other player.
+If the player has no valid moves that move a token \\( n \\) cells forward, the the `move` sub-turn is skipped and the `roll` sub-turn immediately starts for the other player.
 
-Otherwise, the `move` sub-turn begins. Each player has `7` tokens, numbered from `0` to `6` (inclusive). The player playing in this turn must write a single line with the number of the token he wants to move forward $n$ cells, ended with a `LF` (aka `\n`). The move must be valid. If the move is valid, the other player and the spectators will receive the sent number, otherwise they will receive `RETIRE`, which indicates that the game has ended with a win for the opponent.
+Otherwise, the `move` sub-turn begins. Each player has `7` tokens, numbered from `0` to `6` (inclusive). The player playing in this turn must write a single line with the number of the token he wants to move forward \\( n \\) cells, ended with a `LF` (aka `\n`). The move must be valid. If the move is valid, the other player and the spectators will receive the sent number, otherwise they will receive `RETIRE`, which indicates that the game has ended with a win for the opponent.
 
 If the token lands on the fourth, eighth or fourteenth cell than the player has another turn, thus moving again to the `roll` sub-turn. Otherwise, the turns pass to the opponent, which begins its `roll` turn.
 

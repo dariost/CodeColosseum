@@ -8,7 +8,7 @@ they shall be discussed separately.
 ## Unix-like (Linux, macOS, FreeBSD, etc.)
 On Unix-like systems named pipes can be read and written as ordinary files. Thus,
 their use is no different than reading and writing using the common libraries that
-(sane) programming languages provide.
+programming languages usually provide.
 
 If a program is started by `coco` with the `pipe` channel, `coco` will pass to the
 program two environment variables: `COCO_PIPEIN` and `COCO_PIPEOUT`. These

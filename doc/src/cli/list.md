@@ -9,7 +9,7 @@ $ coco -s wss://code.colosseum.cf/ list
 This will print a list of available games.
 
 This subcommand can also be used to retrieve the description for a game. To do so
-the game bame must be specified after `list`. For instance, to get the description
+the game name must be specified after `list`. For instance, to get the description
 for the game `roshambo` the following command can be used:
 
 ```shell
