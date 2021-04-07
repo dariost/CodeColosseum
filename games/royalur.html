@@ -1,0 +1,397 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js coal">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>royalur - Code Colosseum</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="../favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="../favicon.png">
+        
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+        <!-- MathJax -->
+        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../coco.html"><strong aria-hidden="true">1.</strong> Code Colosseum</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../coco/arch.html"><strong aria-hidden="true">1.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../coco/lobby.html"><strong aria-hidden="true">1.2.</strong> Lobby</a></li></ol></li><li class="chapter-item expanded "><a href="../cli.html"><strong aria-hidden="true">2.</strong> Command Line Client</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../cli/list.html"><strong aria-hidden="true">2.1.</strong> list</a></li><li class="chapter-item expanded "><a href="../cli/lobby.html"><strong aria-hidden="true">2.2.</strong> lobby</a></li><li class="chapter-item expanded "><a href="../cli/new.html"><strong aria-hidden="true">2.3.</strong> new</a></li><li class="chapter-item expanded "><a href="../cli/connect.html"><strong aria-hidden="true">2.4.</strong> connect</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../cli/stdio.html"><strong aria-hidden="true">2.4.1.</strong> stdio</a></li><li class="chapter-item expanded "><a href="../cli/pipe.html"><strong aria-hidden="true">2.4.2.</strong> pipe</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../games.html"><strong aria-hidden="true">3.</strong> Games</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../games/roshambo.html"><strong aria-hidden="true">3.1.</strong> roshambo</a></li><li class="chapter-item expanded "><a href="../games/royalur.html" class="active"><strong aria-hidden="true">3.2.</strong> royalur</a></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Server Setup</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Writing a Game</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Network Protocol</div></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">Code Colosseum</h1>
+
+                    <div class="right-buttons">
+                        
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                        
+                        <a href="https://github.com/dariost/CodeColosseum" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="royalur-royal-game-of-ur"><a class="header" href="#royalur-royal-game-of-ur">royalur (Royal Game of Ur)</a></h1>
+<p>The Royal Game of Ur is one the oldest board games, dating back to at least 5000 years ago. <a href="https://www.youtube.com/watch?v=WZskjLq040I">This excellent video</a> gives a thorough introduction to this game, explaining its rules from <a href="https://www.youtube.com/watch?v=WZskjLq040I&amp;t=221s">3:41</a> to 5:10.</p>
+<svg width="196.5mm" height="74.001mm" version="1.1" viewBox="0 0 196.5 74.001" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<metadata>
+<rdf:RDF>
+<cc:Work rdf:about="">
+<dc:format>image/svg+xml</dc:format>
+<dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+<dc:title/>
+</cc:Work>
+</rdf:RDF>
+</metadata>
+<g>
+<rect x=".25011" y=".25012" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="24.75" y=".25012" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="49.25" y=".25012" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="73.75" y=".25012" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x=".25011" y="24.75" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="24.75" y="24.75" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="49.25" y="24.75" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="73.75" y="24.75" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x=".25012" y="49.25" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="24.75" y="49.25" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="49.25" y="49.25" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="73.75" y="49.25" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="98.251" y="24.75" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="122.75" y="24.75" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="147.25" y="24.75" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="171.75" y="24.75" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="147.25" y=".25011" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="171.75" y=".25011" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="147.25" y="49.25" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<rect x="171.75" y="49.25" width="24.5" height="24.5" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-miterlimit="10" stroke-width=".50022"/>
+<path d="m73.75 24.75 24.5 24.5" fill="none" stroke="currentColor" stroke-width=".50022"/>
+<path d="m73.75 49.25 24.5-24.5" fill="none" stroke="currentColor" stroke-width=".50022"/>
+<ellipse cx="86" cy="37" rx="4.7478" ry="4.7478" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".50445"/>
+<circle cx="86" cy="37" r="7.2505" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".49904"/>
+<circle cx="86" cy="37" r="9.7502" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".49959"/>
+<path d="m0.25011 0.25012 24.5 24.5" fill="none" stroke="currentColor" stroke-width=".50022"/>
+<path d="m0.25012 24.75 24.5-24.5" fill="none" stroke="currentColor" stroke-width=".50022"/>
+<ellipse cx="12.5" cy="12.5" rx="4.7478" ry="4.7478" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".50445"/>
+<circle cx="12.5" cy="12.5" r="7.2505" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".49904"/>
+<circle cx="12.5" cy="12.5" r="9.7502" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".49959"/>
+<path d="m0.25012 49.25 24.5 24.5" fill="none" stroke="currentColor" stroke-width=".50022"/>
+<path d="m0.25013 73.75 24.5-24.5" fill="none" stroke="currentColor" stroke-width=".50022"/>
+<ellipse cx="12.5" cy="61.5" rx="4.7478" ry="4.7478" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".50445"/>
+<circle cx="12.5" cy="61.5" r="7.2505" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".49904"/>
+<circle cx="12.5" cy="61.5" r="9.7502" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".49959"/>
+<path d="m147.25 0.25011 24.5 24.5" fill="none" stroke="currentColor" stroke-width=".50022"/>
+<path d="m147.25 24.75 24.5-24.5" fill="none" stroke="currentColor" stroke-width=".50022"/>
+<ellipse cx="159.5" cy="12.5" rx="4.7478" ry="4.7478" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".50445"/>
+<circle cx="159.5" cy="12.5" r="7.2505" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".49904"/>
+<circle cx="159.5" cy="12.5" r="9.7502" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".49959"/>
+<path d="m147.25 49.25 24.5 24.5" fill="none" stroke="currentColor" stroke-width=".50022"/>
+<path d="m147.25 73.75 24.5-24.5" fill="none" stroke="currentColor" stroke-width=".50022"/>
+<ellipse cx="159.5" cy="61.5" rx="4.7478" ry="4.7478" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".50445"/>
+<circle cx="159.5" cy="61.5" r="7.2505" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".49904"/>
+<circle cx="159.5" cy="61.5" r="9.7502" fill="none" stroke="currentColor" stroke-dashoffset="94.488" stroke-width=".49959"/>
+<path d="m110.77 12.223h-97.976v19.492h170.83v-19.252h-41.645" fill="none" stroke="#ff3f00"/>
+<path d="m111.55 61.244h-98.937v-18.952h171.17v19.035h-40.957" fill="none" stroke="#00ff7f"/>
+<path d="m139 12.462 4.505-2.6009v2.6009 2.6009l-2.2525-1.3005z" fill="#ff3f00" stroke="#ff3f00" stroke-dashoffset="94.488"/>
+<path d="m139 61.327 4.505-2.6009v2.6009 2.6009l-2.2525-1.3005z" fill="#00ff7f" stroke="#00ff7f" stroke-dashoffset="94.488"/>
+</g>
+</svg>
+<p>The Royal Game of Ur is a race game. Each player has 7 tokens, and it wants to send all tokens to the end of the track before the opponent does. Each player has a track of 14 cells (not counting start and end), with the cells from the fifth to the twelfth (included) shared between players. The game is played in turns alternating between the two players until one of them make all of their tokens exit the track, winning the game.</p>
+<p>At the start of its turn, the player flips 4 two-sided coins, which will give a number \( n \) of heads. The player must then choose a token to move \( n \) cells forward. For a token, to exit the track, the exact number of cells remaining is needed (e.g. if a token is on the fourteenth cell, only a \( 1 \) can make it exit the track). If no moves are possible for the player (such as when getting a \( 0 \), but it's not the only such case) then it skips the turn, giving it to the other player.</p>
+<p>The player cannot move a token in a cell already occupied by one of its token, however it can move it in a cell occupied by an opponent's token. In this case, the opponent's token gets instantly sent back to the opponent's track start, and the cell becomes occupied by the player token.</p>
+<p>If a token lands on the fourth, eighth or fourteenth cell, the player gets to play also for the next turn, otherwise the opponent's turn begins. A token cannot land on one of these 3 cells if it's already occupied (even by an opponent's token).</p>
+<h2 id="implementation-details"><a class="header" href="#implementation-details">Implementation details</a></h2>
+<p>At the beginning of the game both players will receive 3 lines:</p>
+<ul>
+<li>the first line contains the name of the first player;</li>
+<li>the second line contains the name of the second player;</li>
+<li>the third line contains <code>0</code> if the receiver is the first player, <code>1</code> otherwise.</li>
+</ul>
+<p>Spectators will only receive the first two lines. In the first turn the first player will play.</p>
+<p>Each turn is subdivided into two sub-turns:</p>
+<ul>
+<li><code>roll</code>;</li>
+<li><code>move</code>.</li>
+</ul>
+<p>In the <code>roll</code> sub-turn both players and spectators will receive a single line containing 4 space-separated binary digits. The <code>1</code>s represent a head, the <code>0</code> a tail. The amount \( n \) is calculated as the number of <code>1</code>s obtained.</p>
+<p>If the player has no valid moves that move a token \( n \) cells forward, the the <code>move</code> sub-turn is skipped and the <code>roll</code> sub-turn immediately starts for the other player.</p>
+<p>Otherwise, the <code>move</code> sub-turn begins. Each player has <code>7</code> tokens, numbered from <code>0</code> to <code>6</code> (inclusive). The player playing in this turn must write a single line with the number of the token he wants to move forward \( n \) cells, ended with a <code>LF</code> (aka <code>\n</code>). The move must be valid. If the move is valid, the other player and the spectators will receive the sent number, otherwise they will receive <code>RETIRE</code>, which indicates that the game has ended with a win for the opponent.</p>
+<p>If the token lands on the fourth, eighth or fourteenth cell than the player has another turn, thus moving again to the <code>roll</code> sub-turn. Otherwise, the turns pass to the opponent, which begins its <code>roll</code> turn.</p>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<p>This is an example of the streams of two players, <code>PlayerA</code> and <code>PlayerB</code>, and the spectators for an hypothetical game.</p>
+<p>Note that all lines prepended with a <code>&gt;</code> indicate that the line is sent rather than received.</p>
+<p>Stream of <code>PlayerA</code>:</p>
+<pre><code class="language-text">PlayerA
+PlayerB
+0
+0 0 1 1
+&gt;3
+1 1 1 1
+0
+1 0 1 0
+0
+0 1 0 0
+&gt;3
+0 0 0 0
+1 0 1 1
+&gt;3
+0 0 1 1
+0
+0 0 0 1
+&gt;4
+1 0 1 0
+RETIRE
+</code></pre>
+<p>Stream of <code>PlayerB</code>:</p>
+<pre><code class="language-text">PlayerA
+PlayerB
+1
+0 0 1 1
+3
+1 1 1 1
+&gt;0
+1 0 1 0
+&gt;0
+0 1 0 0
+3
+0 0 0 0
+1 0 1 1
+3
+0 0 1 1
+&gt;0
+0 0 0 1
+4
+1 0 1 0
+&gt;2
+</code></pre>
+<p>Stream of spectators:</p>
+<pre><code class="language-text">PlayerA
+PlayerB
+0 0 1 1
+3
+1 1 1 1
+0
+1 0 1 0
+0
+0 1 0 0
+3
+0 0 0 0
+1 0 1 1
+3
+0 0 1 1
+0
+0 0 0 1
+4
+1 0 1 0
+RETIRE
+</code></pre>
+<h2 id="game-parameters"><a class="header" href="#game-parameters">Game parameters</a></h2>
+<p>There's only one game-specific parameter:</p>
+<ul>
+<li><code>pace</code>: the minimum number of seconds between turns (default: <code>1.5</code>, min: <code>0</code>, max: <code>30</code>).</li>
+</ul>
+<p>Additional information:</p>
+<ul>
+<li>the game can only be played by exactly <code>2</code> players;</li>
+<li>the default timeout is <code>90</code> seconds;</li>
+<li>no more than <code>1</code> server bot per game is allowed.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="../games/roshambo.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="../games/roshambo.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>
