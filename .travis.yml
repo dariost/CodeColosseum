@@ -13,7 +13,6 @@ before_script:
 
 script:
   - mdbook build doc && mdbook test doc
-  - echo -n "doc.colosseum.cf" > doc/book/CNAME
 
 deploy:
   provider: pages
