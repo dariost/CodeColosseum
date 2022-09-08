@@ -17,6 +17,7 @@ use tokio_tungstenite::WebSocketStream;
 use tracing::{error, info, instrument, warn};
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) struct Client<T: AsyncRead + AsyncWrite + Unpin> {
     ws: WebSocketStream<T>,
     addr: String,

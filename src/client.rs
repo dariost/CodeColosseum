@@ -1,7 +1,7 @@
 mod proto;
 
 use crate::proto::{GameParams, MatchInfo, Reply, Request};
-use clap::Clap;
+use clap::{ArgEnum, Parser, Subcommand};
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
 use futures_util::{SinkExt, StreamExt};
@@ -32,12 +32,13 @@ use {
 
 const BUFFER_SIZE: usize = 1 << 16;
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
+#[clap(version)]
 struct CliArgs {
     #[clap(
         short,
         long,
-        about = "Server URL",
+        help = "Server URL",
         default_value = "ws://127.0.0.1:8088/"
     )]
     server_url: String,
@@ -45,15 +46,15 @@ struct CliArgs {
     command: Command,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Subcommand, Debug)]
 enum Command {
-    #[clap(about = "List available games")]
+    /// List available games
     List(ListCommand),
-    #[clap(about = "Show games in lobby")]
+    /// Show games in lobby
     Lobby(LobbyCommand),
-    #[clap(about = "Create new game")]
+    /// Create new game
     New(NewCommand),
-    #[clap(about = "Play or spectate a game")]
+    /// Play or spectate a game
     Connect(ConnectCommand),
 }
 
@@ -109,9 +110,9 @@ where
     }
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 struct ListCommand {
-    #[clap(about = "Show one game with its description")]
+    #[clap(help = "Show one game with its description")]
     filter: Option<String>,
 }
 
@@ -150,7 +151,7 @@ impl ListCommand {
     }
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 struct LobbyCommand {}
 
 impl LobbyCommand {
@@ -229,28 +230,28 @@ impl LobbyCommand {
     }
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 struct NewCommand {
-    #[clap(about = "Game to play")]
+    #[clap(help = "Game to play")]
     game: String,
-    #[clap(about = "Name for the lobby")]
+    #[clap(help = "Name for the lobby")]
     name: Option<String>,
-    #[clap(short, long, about = "Password to join the game")]
+    #[clap(short, long, help = "Password to join the game")]
     password: Option<String>,
-    #[clap(short, long, about = "Password to create a verified game")]
+    #[clap(short, long, help = "Password to create a verified game")]
     verification_password: Option<String>,
-    #[clap(short('n'), long, about = "Number of players")]
+    #[clap(short('n'), long, help = "Number of players")]
     players: Option<usize>,
-    #[clap(short, long, about = "Number of server bots", default_value = "0")]
+    #[clap(short, long, help = "Number of server bots", default_value = "0")]
     bots: usize,
-    #[clap(short, long, about = "Timeout for player actions")]
+    #[clap(short, long, help = "Timeout for player actions")]
     timeout: Option<f64>,
     #[clap(
         short,
         long("arg"),
         multiple = true,
         number_of_values = 1,
-        about = "Additional arguments, can be specified multiple times with -a arg=val"
+        help = "Additional arguments, can be specified multiple times with -a arg=val"
     )]
     args: Vec<String>,
 }
@@ -301,29 +302,29 @@ impl NewCommand {
     }
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 struct ConnectCommand {
-    #[clap(about = "Game ID")]
+    #[clap(help = "Game ID")]
     id: String,
-    #[clap(short, long, about = "Spectate instead of play")]
+    #[clap(short, long, help = "Spectate instead of play")]
     spectate: bool,
-    #[clap(short, long, about = "Username for the game")]
+    #[clap(short, long, help = "Username for the game")]
     name: Option<String>,
-    #[clap(short, long, about = "Game password")]
+    #[clap(short, long, help = "Game password")]
     password: Option<String>,
     #[clap(
         arg_enum,
         short,
         long,
-        about = "Channel for program communication",
+        help = "Channel for program communication",
         default_value = "stdio"
     )]
     channel: CommunicationChannel,
-    #[clap(about = "Command to invoke", raw = true)]
+    #[clap(help = "Command to invoke", raw = true)]
     program: Vec<String>,
 }
 
-#[derive(Clap, Debug)]
+#[derive(ArgEnum, Debug, Clone)]
 enum CommunicationChannel {
     Stdio,
     #[cfg(unix)]

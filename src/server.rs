@@ -7,25 +7,25 @@ mod play;
 mod proto;
 mod tuning;
 
-use clap::Clap;
+use clap::Parser;
 use tokio::runtime::Runtime;
 use tracing::error;
 use tracing_subscriber::{
     filter::EnvFilter, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 struct CliArgs {
-    #[clap(short, long, about = "Bind address", default_value = "127.0.0.1")]
+    #[clap(short, long, help = "Bind address", default_value = "127.0.0.1")]
     bind_address: String,
-    #[clap(short('p'), long, about = "Listen port", default_value = "8088")]
+    #[clap(short('p'), long, help = "Listen port", default_value = "8088")]
     listen_port: u16,
-    #[clap(short, long, about = "Verification password")]
+    #[clap(short, long, help = "Verification password")]
     verification_password: Option<String>,
-    #[clap(short, long, about = "Send logs to journald")]
+    #[clap(short, long, help = "Send logs to journald")]
     journald: bool,
     #[cfg(unix)]
-    #[clap(short, long, about = "Use bind address as a Unix Domain Socket")]
+    #[clap(short, long, help = "Use bind address as a Unix Domain Socket")]
     unix_domain_socket: bool,
 }
 
