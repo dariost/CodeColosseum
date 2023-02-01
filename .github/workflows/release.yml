@@ -2,6 +2,12 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+        version:
+          description: 'Version'
+          required: true
+          default: '1'
+          type: string
+          
         os:
           description: 'Operative System'
           required: true
@@ -38,8 +44,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: Coco V.${{ input.version}}
+          release_name: Release Coco V.${{ input.version}}
           draft: false
           prerelease: false
       - name: Upload Release Asset
