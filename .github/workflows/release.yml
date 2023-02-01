@@ -44,8 +44,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: Coco V.${{ inputs.version }}
-          release_name: Release Coco V.${{ inputs.version }}
+          tag_name: CocoV_${{ inputs.version }}
+          release_name: Release Coco V_${{ inputs.version }}
           draft: false
           prerelease: false
       - name: Upload Release Asset
