@@ -1,4 +1,6 @@
 use crate::connection::Client;
+use crate::db::filesystem::{FileSystem, FileSystemArgs};
+use crate::db::{self, DatabaseHandle};
 use crate::tuning::{GAMENAME_REGEX, PASSWORD_REGEX, USERNAME_REGEX};
 use crate::{game, lobby};
 use rand::rngs::{OsRng, StdRng};
@@ -26,6 +28,7 @@ use {
 pub(crate) struct Services {
     pub(crate) game: mpsc::Sender<game::Command>,
     pub(crate) lobby: mpsc::Sender<lobby::Command>,
+    pub(crate) db: DatabaseHandle,
 }
 
 async fn handle_raw_socket<T: AsyncRead + AsyncWrite + Unpin>(
@@ -133,7 +136,22 @@ pub(crate) async fn start(args: crate::CliArgs) {
             srv_game,
         )
         .await,
+        db: db::start::<FileSystem>(FileSystemArgs {
+            root_dir: ".".to_string(),
+        }),
     };
+
+    // Prova a mandare un comando al database
+    services
+        .db
+        .send(db::Command::Store {
+            match_id: "ciao".to_string(),
+            history: vec![],
+            response: None,
+        })
+        .await
+        .unwrap();
+
     #[cfg(unix)]
     let result = if args.unix_domain_socket {
         uds_listener(args, services).await

@@ -1,4 +1,5 @@
 mod connection;
+mod db;
 mod game;
 mod games;
 mod lobby;
