@@ -144,18 +144,24 @@ impl HistoryCommand {
 
         // Send request to server
         match oneshot_request(request, wsout, wsin).await? {
-            Reply::HistoryMatch(match_data) => {
-                if self.direct {
-                    match std::str::from_utf8(&match_data.history) {
-                        Ok(match_history_string) => println!("{}", match_history_string),
-                        Err(_) => return Err(format!("Unable to parse history data")),
-                    }
-                } else {
-                    if self.json {
-                        let match_data_json = serde_json::to_string_pretty(&match_data).unwrap();
-                        println!("{}", match_data_json);
-                    } else {
-                        println!("{:?}", match_data);
+            Reply::HistoryMatch(match_data_result) => {
+                match match_data_result {
+                    None => println!("No result from server"),
+                    Some(match_data) => {
+                        if self.direct {
+                            match std::str::from_utf8(&match_data.history) {
+                                Ok(match_history_string) => println!("{}", match_history_string),
+                                Err(_) => return Err(format!("Unable to parse history data")),
+                            }
+                        } else {
+                            if self.json {
+                                let match_data_json =
+                                    serde_json::to_string_pretty(&match_data).unwrap();
+                                println!("{}", match_data_json);
+                            } else {
+                                println!("{:?}", match_data);
+                            }
+                        }
                     }
                 }
 

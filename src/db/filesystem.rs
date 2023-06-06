@@ -4,7 +4,7 @@ use crate::db::MatchData;
 
 use super::{Command, Database, DatabaseError};
 use async_trait::async_trait;
-use tracing::error;
+use tracing::{error, info};
 
 pub(crate) struct FileSystemArgs {
     pub(crate) root_dir: String,
@@ -25,7 +25,7 @@ impl Database for FileSystem {
     fn close(&mut self) {}
 
     async fn execute(&mut self, cmd: Command) {
-        println!("Database handling cmd: {:?}", cmd);
+        info!("Database handling cmd: {:?}", cmd);
         match cmd {
             // Return list of all saved games
             Command::List(response) => {

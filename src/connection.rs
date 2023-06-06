@@ -289,9 +289,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                             error!("Cannot get reply from database");
                             break;
                         }
-                        Ok(x) => match x {
-                            Ok(match_data) => send!(wsout, Reply::HistoryMatch(match_data)),
-                            Err(e) => error!("Error while retrieving match data: {:?}", e),
+                        Ok(match_data_result) => match match_data_result {
+                            Err(_) => send!(wsout, Reply::HistoryMatch(None)),
+                            Ok(x) => send!(wsout, Reply::HistoryMatch(Some(x))),
                         },
                     }
                 }

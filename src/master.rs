@@ -126,11 +126,17 @@ pub(crate) async fn start(args: crate::CliArgs) {
     let password_regex = init!(Regex::new(PASSWORD_REGEX));
 
     let srv_game = game::start().await;
-    let db = db::start::<FileSystem>(FileSystemArgs {
-        // TODO: Set root directory using environment
-        root_dir: "./database".to_string(),
+
+    const COCO_DATABASE_DIR: &str = "directory";
+    let root_dir = std::env::var("COCO_DATABASE_DIR").unwrap_or_else(|_| {
+        println!(
+            "Database directory not found in environment variables. Usind default: {}",
+            COCO_DATABASE_DIR
+        );
+        COCO_DATABASE_DIR.to_string()
     });
 
+    let db = db::start::<FileSystem>(FileSystemArgs { root_dir });
     let services = Services {
         game: srv_game.clone(),
         lobby: lobby::start(
@@ -145,24 +151,6 @@ pub(crate) async fn start(args: crate::CliArgs) {
         .await,
         db: db.clone(),
     };
-
-    // Test database list feature
-    let (tx, rx) = oneshot::channel();
-    db.send(db::Command::List(tx)).await.unwrap();
-    println!("{:?}", rx.await);
-
-    // Test database read history
-    let (tx, rx) = oneshot::channel();
-    db.send(db::Command::Retrieve {
-        id: "0d1m0jin8p94g".to_string(),
-        response: tx,
-    })
-    .await
-    .unwrap();
-
-    if let Ok(match_data) = rx.await {
-        println!("{:?}", match_data);
-    }
 
     #[cfg(unix)]
     let result = if args.unix_domain_socket {

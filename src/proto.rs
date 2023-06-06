@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-use crate::db::MatchData;
+use crate::db::{DatabaseError, MatchData};
 
 pub(crate) const MAGIC: &str = "coco";
 pub(crate) const VERSION: u64 = 1;
@@ -65,7 +65,7 @@ pub(crate) enum Reply {
     SpectateEnded {},
     SpectateLeaved {},
     HistoryMatchList(Vec<String>),
-    HistoryMatch(MatchData),
+    HistoryMatch(Option<MatchData>),
 }
 
 #[derive(Serialize, Deserialize, Debug)]

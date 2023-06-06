@@ -19,7 +19,7 @@ pub(crate) struct MatchData {
 }
 
 /// All possible database errors
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) enum DatabaseError {
     FileNotFound,
     UnableToDeserialize,
