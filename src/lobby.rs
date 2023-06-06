@@ -1,3 +1,4 @@
+use crate::db::DatabaseHandle;
 use crate::game;
 use crate::play;
 pub(crate) use crate::play::MatchEvent;
@@ -197,6 +198,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
     password_regex: Regex,
     verification_pw: String,
     game: mpsc::Sender<game::Command>,
+    db: DatabaseHandle,
 ) -> mpsc::Sender<Command> {
     let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
     let mtx = tx.clone();
@@ -414,6 +416,7 @@ pub(crate) async fn start<T: 'static + Rng + Send>(
                         m.play = Some(
                             play::start(
                                 instance,
+                                db.clone(),
                                 bots,
                                 m.players.clone(),
                                 m.spectators.clone(),

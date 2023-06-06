@@ -1,3 +1,6 @@
+use crate::db;
+use crate::db::DatabaseHandle;
+use crate::db::MatchData;
 use crate::game;
 use crate::lobby;
 use crate::proto::MatchInfo;
@@ -37,6 +40,7 @@ pub(crate) enum Command {
 
 pub(crate) async fn start(
     mut instance: Box<dyn game::Instance>,
+    db: DatabaseHandle,
     bots: Vec<Box<dyn game::Bot>>,
     players: BTreeMap<String, mpsc::Sender<MatchEvent>>,
     spectators: broadcast::Sender<MatchEvent>,
@@ -121,10 +125,28 @@ pub(crate) async fn start(
                 warn!("Bot did not exit gracefully: {}", x);
             }
         }
+
+        let id_clone = id.clone();
         if let Err(_) = lobby.send(lobby::Command::DeleteGame(id)).await {
             error!("Cannot send delete request lobby::Command::DeleteGame");
         }
+        
+
         info!("Game ended");
+
+        // Collect all informations that will be stored
+        let match_data = MatchData {
+            id: id_clone,
+            game_name: game,
+            players: players.keys().cloned().map(|x| x.to_string()).collect(),
+            history
+        };
+
+        if let Err(_) = db.send(db::Command::Store(match_data)).await {
+            error!("Cannot save history of game");
+        }
+
+
     }.instrument(span));
     tx
 }

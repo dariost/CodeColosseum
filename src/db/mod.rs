@@ -1,4 +1,7 @@
+use std::path::PathBuf;
+
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot};
 use tracing::info;
 
@@ -6,21 +9,34 @@ use crate::tuning::QUEUE_BUFFER;
 
 pub(crate) mod filesystem;
 
+/// All the informations that we want to store about a match
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct MatchData {
+    pub id: String,
+    pub game_name: String,
+    pub players: Vec<String>,
+    pub history: Vec<u8>,
+}
+
+/// All possible database errors
+#[derive(Debug)]
+pub(crate) enum DatabaseError {
+    FileNotFound,
+    UnableToDeserialize,
+}
+
 #[derive(Debug)]
 pub(crate) enum Command {
     /// Request the list of all saved matches ids
     List(oneshot::Sender<Vec<String>>),
-    /// Returns the history of a match
-    Retrive {
-        match_id: String,
-        response: oneshot::Sender<Result<Vec<u8>, ()>>,
+    /// Returns the data of a match
+    Retrieve {
+        // TODO: Can be extendend to support queries
+        id: String,
+        response: oneshot::Sender<Result<MatchData, DatabaseError>>,
     },
-    /// Save a match history
-    Store {
-        match_id: String,
-        history: Vec<u8>,
-        response: Option<oneshot::Sender<Result<(), ()>>>,
-    },
+    /// Save a match
+    Store(MatchData),
 }
 
 #[async_trait]
@@ -56,7 +72,7 @@ where
     let (tx, mut rx) = mpsc::channel(QUEUE_BUFFER);
     tokio::spawn(async move {
         let mut db = D::create(args);
-        println!("Database created");
+        info!("Database created");
 
         loop {
             match rx.recv().await {
@@ -66,7 +82,7 @@ where
         }
 
         db.close();
-        println!("Database closed");
+        info!("Database closed");
     });
 
     DatabaseHandle { inner: tx }

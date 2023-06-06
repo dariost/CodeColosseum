@@ -10,7 +10,7 @@ use std::error::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpListener;
 use tokio::spawn;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio_tungstenite::accept_hdr_async;
 use tokio_tungstenite::tungstenite::handshake::server as tuns;
 use tracing::{error, info, warn};
@@ -124,7 +124,13 @@ pub(crate) async fn start(args: crate::CliArgs) {
     let username_regex = init!(Regex::new(USERNAME_REGEX));
     let gamename_regex = init!(Regex::new(GAMENAME_REGEX));
     let password_regex = init!(Regex::new(PASSWORD_REGEX));
+
     let srv_game = game::start().await;
+    let db = db::start::<FileSystem>(FileSystemArgs {
+        // TODO: Set root directory using environment
+        root_dir: "./database".to_string(),
+    });
+
     let services = Services {
         game: srv_game.clone(),
         lobby: lobby::start(
@@ -134,23 +140,29 @@ pub(crate) async fn start(args: crate::CliArgs) {
             password_regex,
             verification_pw,
             srv_game,
+            db.clone(),
         )
         .await,
-        db: db::start::<FileSystem>(FileSystemArgs {
-            root_dir: ".".to_string(),
-        }),
+        db: db.clone(),
     };
 
-    // Prova a mandare un comando al database
-    services
-        .db
-        .send(db::Command::Store {
-            match_id: "ciao".to_string(),
-            history: vec![],
-            response: None,
-        })
-        .await
-        .unwrap();
+    // Test database list feature
+    let (tx, rx) = oneshot::channel();
+    db.send(db::Command::List(tx)).await.unwrap();
+    println!("{:?}", rx.await);
+
+    // Test database read history
+    let (tx, rx) = oneshot::channel();
+    db.send(db::Command::Retrieve {
+        id: "0d1m0jin8p94g".to_string(),
+        response: tx,
+    })
+    .await
+    .unwrap();
+
+    if let Ok(match_data) = rx.await {
+        println!("{:?}", match_data);
+    }
 
     #[cfg(unix)]
     let result = if args.unix_domain_socket {
