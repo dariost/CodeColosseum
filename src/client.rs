@@ -1,6 +1,9 @@
+mod db;
 mod proto;
+mod tuning;
 
 use crate::proto::{GameParams, MatchInfo, Reply, Request};
+use async_trait::async_trait;
 use clap::{ArgEnum, Parser, Subcommand};
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
@@ -56,6 +59,8 @@ enum Command {
     New(NewCommand),
     /// Play or spectate a game
     Connect(ConnectCommand),
+    /// List all saved matches
+    History(HistoryCommand),
 }
 
 impl Command {
@@ -72,6 +77,7 @@ impl Command {
             Command::Lobby(cmd) => cmd.run(wsout, wsin).await,
             Command::New(cmd) => cmd.run(wsout, wsin).await,
             Command::Connect(cmd) => cmd.run(wsout, wsin).await,
+            Command::History(cmd) => cmd.run(wsout, wsin).await,
         }
     }
 }
@@ -106,6 +112,62 @@ where
             }
         } else {
             break Err(format!("Connection lost while waiting for reply"));
+        }
+    }
+}
+
+#[derive(Parser, Debug)]
+struct HistoryCommand {
+    #[clap(help = "Show the match data of the game with this id")]
+    id: Option<String>,
+    #[clap(short, long, help = "Print the match data using json")]
+    json: bool,
+    #[clap(
+        short,
+        long,
+        help = "Print only the history data as it appeared during play"
+    )]
+    direct: bool,
+}
+
+impl HistoryCommand {
+    async fn run<T, U>(self, wsout: &mut T, wsin: &mut U) -> Result<(), String>
+    where
+        T: Sink<Message> + Unpin,
+        <T as Sink<Message>>::Error: Display,
+        U: Stream<Item = Result<Message, TsError>> + Unpin,
+    {
+        let request = match self.id {
+            Some(id) => Request::HistoryMatch { id },
+            None => Request::HistoryMatchList,
+        };
+
+        // Send request to server
+        match oneshot_request(request, wsout, wsin).await? {
+            Reply::HistoryMatch(match_data) => {
+                if self.direct {
+                    match std::str::from_utf8(&match_data.history) {
+                        Ok(match_history_string) => println!("{}", match_history_string),
+                        Err(_) => return Err(format!("Unable to parse history data")),
+                    }
+                } else {
+                    if self.json {
+                        let match_data_json = serde_json::to_string_pretty(&match_data).unwrap();
+                        println!("{}", match_data_json);
+                    } else {
+                        println!("{:?}", match_data);
+                    }
+                }
+
+                Ok(())
+            }
+            Reply::HistoryMatchList(matches) => {
+                for value in &matches {
+                    println!("{}", value);
+                }
+                Ok(())
+            }
+            _ => Err(format!("Server responded with wrong message")),
         }
     }
 }

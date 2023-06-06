@@ -1,7 +1,7 @@
 use crate::master::Services;
 use crate::proto::{self, Reply, Request};
 use crate::tuning::{CHUNK_SIZE, PING_TIMEOUT, PIPE_BUFFER, QUEUE_BUFFER};
-use crate::{game, lobby};
+use crate::{db, game, lobby};
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
 use futures_util::{SinkExt, StreamExt};
@@ -268,6 +268,34 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                     );
                     send!(wsout, Reply::GameNew { id });
                 }
+                Request::HistoryMatchList => {
+                    let results = oneshot_reply!(self.srv.db, db::Command::List);
+                    send!(wsout, Reply::HistoryMatchList(results));
+                }
+                Request::HistoryMatch { id } => {
+                    let (tx, rx) = oneshot::channel();
+                    if let Err(_) = self
+                        .srv
+                        .db
+                        .send(db::Command::Retrieve { response: tx, id })
+                        .await
+                    {
+                        error!("Cannot forward request to database");
+                        break;
+                    }
+
+                    match rx.await {
+                        Err(_) => {
+                            error!("Cannot get reply from database");
+                            break;
+                        }
+                        Ok(x) => match x {
+                            Ok(match_data) => send!(wsout, Reply::HistoryMatch(match_data)),
+                            Err(e) => error!("Error while retrieving match data: {:?}", e),
+                        },
+                    }
+                }
+
                 _ => {
                     warn!("Request not valid for current state: {:?}", req);
                     break;

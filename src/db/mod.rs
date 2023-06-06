@@ -32,8 +32,8 @@ pub(crate) enum Command {
     /// Returns the data of a match
     Retrieve {
         // TODO: Can be extendend to support queries
-        id: String,
         response: oneshot::Sender<Result<MatchData, DatabaseError>>,
+        id: String,
     },
     /// Save a match
     Store(MatchData),
