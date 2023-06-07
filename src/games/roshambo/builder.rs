@@ -2,6 +2,7 @@ use super::bot::Bot;
 use super::instance::Instance;
 use crate::game;
 use crate::games;
+use crate::proto::GameArgInfo;
 use async_trait::async_trait;
 use games::util::arg;
 use rand::rngs::{OsRng, StdRng};
@@ -28,6 +29,9 @@ impl game::Builder for Builder {
     }
     async fn description(&self) -> String {
         String::from(include_str!("description.md"))
+    }
+    fn get_args_definition(&self) -> HashMap<String, GameArgInfo> {
+        HashMap::new()
     }
     async fn gen_instance(
         &self,

@@ -2,11 +2,13 @@ use super::bot::Bot;
 use super::instance::Instance;
 use crate::game;
 use crate::games;
+use crate::proto::GameArgInfo;
 use async_trait::async_trait;
 use games::util::arg;
 use rand::rngs::{OsRng, StdRng};
 use rand::SeedableRng;
 use std::collections::HashMap;
+use std::hash::Hash;
 use tokio::time::Duration;
 
 const DEFAULT_TIMEOUT: f64 = 90.0;
@@ -29,6 +31,20 @@ impl game::Builder for Builder {
     async fn description(&self) -> String {
         String::from(include_str!("description.md"))
     }
+
+    fn get_args_definition(&self) -> HashMap<String, GameArgInfo> {
+        HashMap::from([(
+            "pace".to_owned(),
+            GameArgInfo {
+                description: "How fast the game plays (?)".to_owned(),
+                limitations: HashMap::from([
+                    ("max_value".to_owned(), "30".to_owned()),
+                    ("min_value".to_owned(), "0".to_owned()),
+                ]),
+            },
+        )])
+    }
+
     async fn gen_instance(
         &self,
         param: &mut game::Params,
