@@ -43,10 +43,23 @@ pub(crate) enum Request {
     },
 }
 
+/// All the infomrations available for a game
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct GameUsage {
+    pub name: String,
+    pub args: HashMap<String, GameArgInfo>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct GameArgInfo {
+    pub description: String,
+    pub limitations: HashMap<String, String>,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum Reply {
     Handshake { magic: String, version: u64 },
-    GameList { games: Vec<String> },
+    GameList { games: Vec<GameUsage> },
     GameDescription { description: Option<String> },
     GameNew { id: Result<String, String> },
     LobbyList { info: Vec<MatchInfo> },

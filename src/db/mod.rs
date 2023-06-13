@@ -54,14 +54,11 @@ pub(crate) trait Database {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct DatabaseHandle {
-    inner: mpsc::Sender<Command>,
-}
-
+pub(crate) struct DatabaseHandle(mpsc::Sender<Command>);
 impl std::ops::Deref for DatabaseHandle {
     type Target = mpsc::Sender<Command>;
     fn deref(&self) -> &Self::Target {
-        &self.inner
+        &self.0
     }
 }
 
@@ -85,5 +82,5 @@ where
         info!("Database closed");
     });
 
-    DatabaseHandle { inner: tx }
+    DatabaseHandle(tx)
 }

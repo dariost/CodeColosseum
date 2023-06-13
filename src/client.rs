@@ -182,6 +182,8 @@ impl HistoryCommand {
 struct ListCommand {
     #[clap(help = "Show one game with its description")]
     filter: Option<String>,
+    #[clap(short, long, help = "Show games and their usage")]
+    usage: bool,
 }
 
 impl ListCommand {
@@ -200,8 +202,13 @@ impl ListCommand {
         };
         match oneshot_request(request, wsout, wsin).await? {
             Reply::GameList { games } => {
-                for game in games {
-                    println!("- {}", game);
+                if self.usage {
+                    let usage_text = serde_json::to_string_pretty(&games).unwrap();
+                    println!("{}", usage_text);
+                } else {
+                    for game in games {
+                        println!("- {}", game.name);
+                    }
                 }
                 Ok(())
             }
