@@ -127,7 +127,7 @@ pub(crate) async fn start(args: crate::CliArgs) {
 
     let srv_game = game::start().await;
 
-    const COCO_DATABASE_DIR: &str = "directory";
+    const COCO_DATABASE_DIR: &str = "./directory";
     let root_dir = std::env::var("COCO_DATABASE_DIR").unwrap_or_else(|_| {
         println!(
             "Database directory not found in environment variables. Usind default: {}",

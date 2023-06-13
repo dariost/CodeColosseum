@@ -6,6 +6,8 @@ use super::{Command, Database, DatabaseError};
 use async_trait::async_trait;
 use tracing::{error, info};
 
+const MATCH_DESCRIPTOR_FILE: &str = "descriptor.json";
+
 pub(crate) struct FileSystemArgs {
     pub(crate) root_dir: String,
 }
@@ -36,6 +38,7 @@ impl Database for FileSystem {
 
                         paths
                             .iter()
+                            .filter(|e| e.is_dir())
                             .filter_map(|e| e.file_name())
                             .filter_map(|e| OsString::from(e).into_string().ok())
                             .collect()
@@ -51,22 +54,33 @@ impl Database for FileSystem {
                 }
             }
             // Save game data to file
+            // TODO: Solve path traversal vulnerability
             Command::Store(match_data) => {
                 match serde_json::to_string_pretty(&match_data) {
                     Err(e) => error!("Unable to serialize game data: {}", e),
                     Ok(data_json) => {
-                        // TODO: Solve path traversal vulnerability
-                        let output_path = format!("{}/{}", self.args.root_dir, &match_data.id);
+
+                        // Create a directory to store the match instance
+                        let match_directory = format!("{}/{}", self.args.root_dir, &match_data.id);
+                        if let Err(e) = std::fs::create_dir(&match_directory) {
+                            error!("Unable to create match directory: {}", e);
+                            return;
+                        }
+
+                        // Write match descriptor
+                        let output_path = format!("{}/{}", &match_directory, MATCH_DESCRIPTOR_FILE);
                         if let Err(e) = tokio::fs::write(output_path, data_json).await {
                             error!("Unable to save game data to file: {}", e);
+                            return;
                         }
                     }
                 }
             }
-            // Read game data from file
+            // Read match descriptor from file
+            // TODO: Solve path traversal vulnerability
             Command::Retrieve { id, response } => {
-                // TODO: Solve path traversal vulnerability
-                let input_path = format!("{}/{}", self.args.root_dir, id);
+                let input_path = format!("{}/{}/{}", self.args.root_dir, id, MATCH_DESCRIPTOR_FILE);
+                println!("{}", input_path);
                 match tokio::fs::read(input_path).await {
                     Err(e) => {
                         error!("Unable to read game data: {}", e);
