@@ -289,10 +289,35 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                             error!("Cannot get reply from database");
                             break;
                         }
-                        Ok(match_data_result) => match match_data_result {
-                            Err(_) => send!(wsout, Reply::HistoryMatch(None)),
-                            Ok(x) => send!(wsout, Reply::HistoryMatch(Some(x))),
-                        },
+                        Ok(match_data_result) => {
+                            send!(wsout, Reply::HistoryMatch(match_data_result))
+                        }
+                    }
+                }
+                Request::SyncFile { id, target } => {
+                    let (tx, rx) = oneshot::channel();
+                    if let Err(_) = self
+                        .srv
+                        .db
+                        .send(db::Command::Sync {
+                            response: tx,
+                            id,
+                            target,
+                        })
+                        .await
+                    {
+                        error!("Cannot forward request to database");
+                        break;
+                    }
+
+                    match rx.await {
+                        Err(_) => {
+                            error!("Cannot get reply from database");
+                            break;
+                        }
+                        Ok(sync_result) => {
+                            send!(wsout, Reply::SyncFile(sync_result));
+                        }
                     }
                 }
 

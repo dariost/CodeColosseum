@@ -53,20 +53,21 @@ impl Database for FileSystem {
                     error!("Unable to reply to list command: {:?}", e);
                 }
             }
-            // Save game data to file
+            // Save game data to file and optionally call other system to process
+            // match data
             // TODO: Solve path traversal vulnerability
             Command::Store(match_data) => {
+                // Create directory for match data
+                let match_directory = format!("{}/{}", self.args.root_dir, &match_data.id);
+                if let Err(e) = std::fs::create_dir(&match_directory) {
+                    error!("Unable to create match directory: {}", e);
+                    return;
+                }
+
+                // Serialize match data
                 match serde_json::to_string_pretty(&match_data) {
                     Err(e) => error!("Unable to serialize game data: {}", e),
                     Ok(data_json) => {
-
-                        // Create a directory to store the match instance
-                        let match_directory = format!("{}/{}", self.args.root_dir, &match_data.id);
-                        if let Err(e) = std::fs::create_dir(&match_directory) {
-                            error!("Unable to create match directory: {}", e);
-                            return;
-                        }
-
                         // Write match descriptor
                         let output_path = format!("{}/{}", &match_directory, MATCH_DESCRIPTOR_FILE);
                         if let Err(e) = tokio::fs::write(output_path, data_json).await {
@@ -75,8 +76,11 @@ impl Database for FileSystem {
                         }
                     }
                 }
+
+                // Apply all post processes
+                // TODO: Here you apply custom post process tools to generate batch resources
             }
-            // Read match descriptor from file
+            // Read match descriptor from ile
             // TODO: Solve path traversal vulnerability
             Command::Retrieve { id, response } => {
                 let input_path = format!("{}/{}/{}", self.args.root_dir, id, MATCH_DESCRIPTOR_FILE);
@@ -103,6 +107,32 @@ impl Database for FileSystem {
                                     error!("Unable to send history data: {:?}", e);
                                 }
                             }
+                        }
+                    }
+                }
+            }
+            // Returns custom match resources
+            // TODO: Solve path traversal vulnerability
+            Command::Sync {
+                response,
+                id,
+                target,
+            } => {
+                let input_path = format!("{}/{}/{}", self.args.root_dir, id, target);
+                println!("reading custom resource of match {}: {}", id, target);
+                match tokio::fs::read(input_path).await {
+                    Err(e) => {
+                        error!(
+                            "Custom resource {} of match {} not found: {}",
+                            id, target, e
+                        );
+                        if let Err(e) = response.send(Err(DatabaseError::SyncTargetNotFound)) {
+                            error!("Unable to send error! {:?}", e);
+                        }
+                    }
+                    Ok(input_data) => {
+                        if let Err(e) = response.send(Ok(input_data)) {
+                            error!("Unable to send error! {:?}", e);
                         }
                     }
                 }

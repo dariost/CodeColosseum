@@ -41,9 +41,13 @@ pub(crate) enum Request {
     HistoryMatch {
         id: String,
     },
+    SyncFile {
+        id: String,
+        target: String,
+    },
 }
 
-/// All the infomrations available for a game
+/// All the informations available for a game
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GameUsage {
     pub name: String,
@@ -78,7 +82,8 @@ pub(crate) enum Reply {
     SpectateEnded {},
     SpectateLeaved {},
     HistoryMatchList(Vec<String>),
-    HistoryMatch(Option<MatchData>),
+    HistoryMatch(Result<MatchData, DatabaseError>),
+    SyncFile(Result<Vec<u8>, DatabaseError>),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
