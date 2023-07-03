@@ -32,15 +32,13 @@ impl game::Builder for Builder {
         String::from(include_str!("description.md"))
     }
 
-    fn get_args_definition(&self) -> HashMap<String, GameArgInfo> {
+    async fn args(&self) -> HashMap<String, GameArgInfo> {
         HashMap::from([(
             "pace".to_owned(),
             GameArgInfo {
                 description: "How fast the game plays (?)".to_owned(),
-                limitations: HashMap::from([
-                    ("max_value".to_owned(), "30".to_owned()),
-                    ("min_value".to_owned(), "0".to_owned()),
-                ]),
+                max: Some(30.0),
+                min: Some(0.0)
             },
         )])
     }
@@ -56,9 +54,17 @@ impl game::Builder for Builder {
             None => Some(2),
         };
         param.timeout = param.timeout.or(Some(DEFAULT_TIMEOUT));
+        let constraints = self.args().await;
+
         let pace = match arg(&args, "pace", DEFAULT_PACE) {
-            Ok(x) if x < 0.0 || x > 30.0 => return Err(format!("Invalid pace")),
-            Ok(x) => x,
+            Ok(x) => {
+                let limits = &constraints["pace"];
+                if (x as f64) < limits.min.unwrap() || (x as f64) > limits.max.unwrap() {
+                    return Err(format!("Invalid pace"));
+                } else {
+                    x
+                }
+            }
             Err(x) => return Err(format!("Invaid pace: {}", x)),
         };
         let rng = match StdRng::from_rng(OsRng) {
