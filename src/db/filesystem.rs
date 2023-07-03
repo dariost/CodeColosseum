@@ -4,7 +4,7 @@ use crate::db::MatchData;
 
 use super::{Command, Database, DatabaseError};
 use async_trait::async_trait;
-use tracing::{error, info};
+use tracing::{error, info, trace};
 
 const MATCH_DESCRIPTOR_FILE: &str = "descriptor.json";
 
@@ -31,10 +31,16 @@ impl Database for FileSystem {
         match cmd {
             // Return list of all saved games
             Command::List(response) => {
-                let result: Vec<String> = match std::fs::read_dir(&self.args.root_dir) {
-                    Ok(read_dir) => {
-                        let paths: Vec<PathBuf> =
-                            read_dir.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+                let result: Vec<String> = match tokio::fs::read_dir(&self.args.root_dir).await {
+                    Ok(mut read_dir) => {
+                        let mut paths: Vec<PathBuf> = Vec::new();
+                        loop {
+                            match read_dir.next_entry().await {
+                                Err(e) => error!("Unable to read directory entry: {}", e),
+                                Ok(Some(file)) => paths.push(file.path()),
+                                Ok(None) => break
+                            }
+                        }
 
                         paths
                             .iter()
@@ -59,7 +65,7 @@ impl Database for FileSystem {
             Command::Store(match_data) => {
                 // Create directory for match data
                 let match_directory = format!("{}/{}", self.args.root_dir, &match_data.id);
-                if let Err(e) = std::fs::create_dir(&match_directory) {
+                if let Err(e) = tokio::fs::create_dir(&match_directory).await {
                     error!("Unable to create match directory: {}", e);
                     return;
                 }
@@ -80,11 +86,11 @@ impl Database for FileSystem {
                 // Apply all post processes
                 // TODO: Here you apply custom post process tools to generate batch resources
             }
-            // Read match descriptor from ile
+            // Read match descriptor from file
             // TODO: Solve path traversal vulnerability
             Command::Retrieve { id, response } => {
                 let input_path = format!("{}/{}/{}", self.args.root_dir, id, MATCH_DESCRIPTOR_FILE);
-                println!("{}", input_path);
+                trace!("reading match descriptor: {}", input_path);
                 match tokio::fs::read(input_path).await {
                     Err(e) => {
                         error!("Unable to read game data: {}", e);
@@ -119,7 +125,7 @@ impl Database for FileSystem {
                 target,
             } => {
                 let input_path = format!("{}/{}/{}", self.args.root_dir, id, target);
-                println!("reading custom resource of match {}: {}", id, target);
+                trace!("reading custom resource of match {}: {}", id, target);
                 match tokio::fs::read(input_path).await {
                     Err(e) => {
                         error!(

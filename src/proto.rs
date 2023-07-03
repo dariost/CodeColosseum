@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use crate::db::{DatabaseError, MatchData};
 
 pub(crate) const MAGIC: &str = "coco";
-pub(crate) const VERSION: u64 = 1;
+pub(crate) const VERSION: u64 = 2;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum Request {
@@ -57,7 +57,8 @@ pub(crate) struct GameUsage {
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GameArgInfo {
     pub description: String,
-    pub limitations: HashMap<String, String>,
+    pub max: Option<f64>,
+    pub min: Option<f64>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
