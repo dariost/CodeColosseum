@@ -294,33 +294,6 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                         }
                     }
                 }
-                Request::SyncFile { id, target } => {
-                    let (tx, rx) = oneshot::channel();
-                    if let Err(_) = self
-                        .srv
-                        .db
-                        .send(db::Command::Sync {
-                            response: tx,
-                            id,
-                            target,
-                        })
-                        .await
-                    {
-                        error!("Cannot forward request to database");
-                        break;
-                    }
-
-                    match rx.await {
-                        Err(_) => {
-                            error!("Cannot get reply from database");
-                            break;
-                        }
-                        Ok(sync_result) => {
-                            send!(wsout, Reply::SyncFile(sync_result));
-                        }
-                    }
-                }
-
                 _ => {
                     warn!("Request not valid for current state: {:?}", req);
                     break;

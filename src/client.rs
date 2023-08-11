@@ -62,8 +62,6 @@ enum Command {
     Connect(ConnectCommand),
     /// List all saved matches
     History(HistoryCommand),
-    /// Download optional saved match data
-    Sync(SyncCommand),
 }
 
 impl Command {
@@ -81,7 +79,6 @@ impl Command {
             Command::New(cmd) => cmd.run(wsout, wsin).await,
             Command::Connect(cmd) => cmd.run(wsout, wsin).await,
             Command::History(cmd) => cmd.run(wsout, wsin).await,
-            Command::Sync(cmd) => cmd.run(wsout, wsin).await,
         }
     }
 }
@@ -179,52 +176,6 @@ impl HistoryCommand {
             }
             _ => Err(format!("Server responded with wrong message")),
         }
-    }
-}
-
-#[derive(Parser, Debug)]
-struct SyncCommand {
-    #[clap(help = "Id of the match")]
-    id: String,
-    #[clap(help = "Name of the resource to download")]
-    target: String,
-    #[clap(help = "Where to save the resource")]
-    output: String,
-}
-
-impl SyncCommand {
-    async fn run<T: Sink<Message> + Unpin, U: Stream<Item = Result<Message, TsError>> + Unpin>(
-        self,
-        wsout: &mut T,
-        wsin: &mut U,
-    ) -> Result<(), String>
-    where
-        <T as Sink<Message>>::Error: Display,
-    {
-        let request = Request::SyncFile {
-            id: self.id,
-            target: self.target.clone(),
-        };
-
-        let mut path = PathBuf::from(self.output);
-        path.push(self.target);
-
-        println!("Sync saving to {}", path.display());
-        match oneshot_request(request, wsout, wsin).await? {
-            Reply::SyncFile(result) => match result {
-                Err(e) => println!("Sync error: {:?}", e),
-                Ok(data) => {
-                    if let Err(e) = std::fs::write(path, data) {
-                        println!("Unable to save sync resource: {}", e);
-                    } else {
-                        println!("Sync completed!");
-                    }
-                }
-            },
-            _ => {}
-        };
-
-        Ok(())
     }
 }
 

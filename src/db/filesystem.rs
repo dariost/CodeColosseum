@@ -111,32 +111,6 @@ impl Database for FileSystem {
                     }
                 }
             }
-            // Returns custom match resources
-            // TODO: Solve path traversal vulnerability
-            Command::Sync {
-                response,
-                id,
-                target,
-            } => {
-                let input_path = format!("{}/{}/{}", self.args.root_dir, id, target);
-                println!("reading custom resource of match {}: {}", id, target);
-                match tokio::fs::read(input_path).await {
-                    Err(e) => {
-                        error!(
-                            "Custom resource {} of match {} not found: {}",
-                            id, target, e
-                        );
-                        if let Err(e) = response.send(Err(DatabaseError::SyncTargetNotFound)) {
-                            error!("Unable to send error! {:?}", e);
-                        }
-                    }
-                    Ok(input_data) => {
-                        if let Err(e) = response.send(Ok(input_data)) {
-                            error!("Unable to send error! {:?}", e);
-                        }
-                    }
-                }
-            }
         }
     }
 }
