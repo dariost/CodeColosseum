@@ -290,7 +290,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Client<T> {
                             break;
                         }
                         Ok(match_data_result) => {
-                            send!(wsout, Reply::HistoryMatch(match_data_result))
+                            match bincode::serialize(&Reply::HistoryMatch(match_data_result)) {
+                                Err(e) => error!("Unable to serialize: {}", e),
+                                Ok(encoded) => {
+                                    if let Err(e) = wsout.send(Message::Binary(encoded)).await {
+                                        warn!("Cannot send reply {}", e);
+                                    }
+                                }
+                            }
                         }
                     }
                 }

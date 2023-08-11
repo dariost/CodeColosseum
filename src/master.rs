@@ -127,14 +127,10 @@ pub(crate) async fn start(args: crate::CliArgs) {
 
     let srv_game = game::start().await;
 
-    const COCO_DATABASE_DIR: &str = "./database";
-    let root_dir = std::env::var("COCO_DATABASE_DIR").unwrap_or_else(|_| {
-        println!(
-            "Database directory not found in environment variables. Usind default: {}",
-            COCO_DATABASE_DIR
-        );
-        COCO_DATABASE_DIR.to_string()
-    });
+    let root_dir = args.database_dir.clone();
+    if let Err(e) = std::fs::create_dir_all(&root_dir) {
+        error!("Unable to create database directory: {}", e);
+    }
 
     let db = db::start::<FileSystem>(FileSystemArgs { root_dir });
     let services = Services {

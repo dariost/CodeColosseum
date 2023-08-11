@@ -60,7 +60,8 @@ enum Command {
     New(NewCommand),
     /// Play or spectate a game
     Connect(ConnectCommand),
-    /// List all saved matches
+    /// List all saved matches 
+    /// or retrive the history of a specific match
     History(HistoryCommand),
 }
 
@@ -104,12 +105,16 @@ where
     loop {
         if let Some(msg) = wsin.next().await {
             match msg {
+                Ok(Message::Binary(x)) => match bincode::deserialize(&x[..]) {
+                    Ok(x) => break Ok(x),
+                    Err(e) => break Err(format!("Could not deserialize server reply: {}", e))
+                },
                 Ok(Message::Text(x)) => match Reply::parse(&x) {
                     Ok(x) => break Ok(x),
                     Err(x) => break Err(format!("Could not parse server reply: {}", x)),
                 },
                 Err(x) => break Err(format!("Connection lost while waiting for reply: {}", x)),
-                Ok(_) => {}
+                _ => { }
             }
         } else {
             break Err(format!("Connection lost while waiting for reply"));
@@ -117,18 +122,18 @@ where
     }
 }
 
+#[derive(ArgEnum, Clone, Debug)]
+enum HistoryCommandDisplayEnum {
+    Raw, Pretty, Json
+}
+
 #[derive(Parser, Debug)]
 struct HistoryCommand {
     #[clap(help = "Show the match data of the game with this id")]
-    id: Option<String>,
-    #[clap(short, long, help = "Print the match data using json")]
-    json: bool,
-    #[clap(
-        short,
-        long,
-        help = "Print only the history data as it appeared during play"
-    )]
-    direct: bool,
+    id: Option<String>, 
+    #[clap(arg_enum, default_value = "pretty", short, long,
+           help = "How to display the match data")]
+    display: HistoryCommandDisplayEnum,
 }
 
 impl HistoryCommand {
@@ -147,20 +152,21 @@ impl HistoryCommand {
         match oneshot_request(request, wsout, wsin).await? {
             Reply::HistoryMatch(match_data_result) => {
                 match match_data_result {
-                    Err(e) => println!("History error: {:?}", e),
+                    Err(e) => return Err(format!("History error: {:?}", e)),
                     Ok(match_data) => {
-                        if self.direct {
-                            match std::str::from_utf8(&match_data.history) {
-                                Ok(match_history_string) => println!("{}", match_history_string),
-                                Err(_) => return Err(format!("Unable to parse history data")),
-                            }
-                        } else {
-                            if self.json {
-                                let match_data_json =
-                                    serde_json::to_string_pretty(&match_data).unwrap();
-                                println!("{}", match_data_json);
-                            } else {
-                                println!("{:?}", match_data);
+                        match self.display {
+                            HistoryCommandDisplayEnum::Pretty => println!("{}", match_data),
+                            HistoryCommandDisplayEnum::Raw => {
+                                match std::str::from_utf8(&match_data.history) {
+                                    Err(e) => return Err(format!("Unable to decode history as utf8: {}", e)),
+                                    Ok(history) => println!("{}", history)
+                                }
+                            },
+                            HistoryCommandDisplayEnum::Json => {
+                                match serde_json::to_string_pretty(&match_data) {
+                                    Err(e) => return Err(format!("Unable to parse history data to json: {}", e)),
+                                    Ok(json_string) => println!("{}", json_string)
+                                };
                             }
                         }
                     }
@@ -170,7 +176,7 @@ impl HistoryCommand {
             }
             Reply::HistoryMatchList(matches) => {
                 for value in &matches {
-                    println!("{}", value);
+                    println!("- {}", value);
                 }
                 Ok(())
             }

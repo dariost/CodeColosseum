@@ -4,6 +4,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot};
 use tracing::info;
+use std::collections::HashMap;
+use std::fmt;
 
 use crate::tuning::QUEUE_BUFFER;
 
@@ -14,8 +16,33 @@ pub(crate) mod filesystem;
 pub(crate) struct MatchData {
     pub id: String,
     pub game_name: String,
+    pub args: HashMap<String, String>,
     pub players: Vec<String>,
+    pub bot_count: u32,
     pub history: Vec<u8>,
+}
+
+impl fmt::Display for MatchData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "id: {}", self.id)?;
+        writeln!(f, "game_name: {}", self.game_name)?;
+        writeln!(f, "bot_count: {}", self.bot_count)?;
+        
+        writeln!(f, "args:")?;
+        for (key, value) in self.args.iter() {
+            writeln!(f, "- {}: {}", key, value)?;
+        }
+        
+        writeln!(f, "players:")?;
+        for player in &self.players {
+            writeln!(f, "- {}", player)?;
+        }
+
+        match std::str::from_utf8(&self.history) {
+            Err(_) => Err(fmt::Error),
+            Ok(history) =>  writeln!(f, "\n{}", history)
+        }
+    }
 }
 
 /// All possible database errors

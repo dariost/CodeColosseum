@@ -10,4 +10,4 @@ Cargo.lock
 **/*.rs.bk
 
 # Remove database folder
-/database/
+/matches/

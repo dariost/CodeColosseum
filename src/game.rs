@@ -13,7 +13,7 @@ use tracing::{error, warn};
 pub(crate) trait Builder: Send + Sync + Debug {
     fn name(&self) -> &str;
     async fn description(&self) -> String;
-    fn get_args_definition(&self) -> HashMap<String, GameArgInfo>;
+    async fn args(&self) -> HashMap<String, GameArgInfo>;
     async fn gen_instance(
         &self,
         param: &mut Params,
@@ -29,6 +29,9 @@ pub(crate) trait Instance: Send + Sync + Debug {
         players: HashMap<String, DuplexStream>,
         spectators: WriteHalf<DuplexStream>,
     );
+
+    /// Get arguments of this instance
+    async fn args(&self) -> HashMap<String, String>;
 }
 
 #[async_trait]
@@ -75,7 +78,7 @@ pub(crate) async fn start() -> mpsc::Sender<Command> {
                     for game in games::get() {
                         result.push(GameUsage {
                             name: game.name().to_owned(),
-                            args: game.get_args_definition(),
+                            args: game.args().await,
                         });
                     }
 
