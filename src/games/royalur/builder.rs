@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use games::util::arg;
 use rand::rngs::{OsRng, StdRng};
 use rand::SeedableRng;
+use regex::Regex;
 use std::collections::HashMap;
 use std::hash::Hash;
 use tokio::time::Duration;
@@ -36,9 +37,8 @@ impl game::Builder for Builder {
         HashMap::from([(
             "pace".to_owned(),
             GameArgInfo {
-                description: "How fast the game plays (?)".to_owned(),
-                max: Some(30.0),
-                min: Some(0.0)
+                description: "How fast the game plays (0-30)".to_owned(),
+                regex: "^(30|([12][0-9]|[0-9])(.[0-9]*)?)$".to_owned(),
             },
         )])
     }
@@ -53,13 +53,14 @@ impl game::Builder for Builder {
             Some(x) => return Err(format!("Cannot create game with {} players", x)),
             None => Some(2),
         };
+
         param.timeout = param.timeout.or(Some(DEFAULT_TIMEOUT));
         let constraints = self.args().await;
 
+        let pace_reg = Regex::new(&constraints["pace"].regex).unwrap();
         let pace = match arg(&args, "pace", DEFAULT_PACE) {
             Ok(x) => {
-                let limits = &constraints["pace"];
-                if (x as f64) < limits.min.unwrap() || (x as f64) > limits.max.unwrap() {
+                if !pace_reg.is_match(&x.to_string()) {
                     return Err(format!("Invalid pace"));
                 } else {
                     x

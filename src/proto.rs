@@ -53,8 +53,7 @@ pub(crate) struct GameUsage {
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct GameArgInfo {
     pub description: String,
-    pub max: Option<f64>,
-    pub min: Option<f64>
+    pub regex: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

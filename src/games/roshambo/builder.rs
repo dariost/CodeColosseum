@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use games::util::arg;
 use rand::rngs::{OsRng, StdRng};
 use rand::SeedableRng;
+use regex::Regex;
 use std::collections::HashMap;
 
 const DEFAULT_TIMEOUT: f64 = 30.0;
@@ -32,16 +33,20 @@ impl game::Builder for Builder {
     }
     async fn args(&self) -> HashMap<String, GameArgInfo> {
         HashMap::from([
-            ("rounds".to_owned(), GameArgInfo {
-                description: "How many rounds".to_owned(),
-                max: Some(10000.0),
-                min: Some(1.0)
-            }),
-            ("pace".to_owned(), GameArgInfo {
-                description: "Ho fast the game plays (?)".to_owned(),
-                max: Some(30.0),
-                min: Some(0.0)
-            }),
+            (
+                "rounds".to_owned(),
+                GameArgInfo {
+                    description: "How many rounds (1-9999)".to_owned(),
+                    regex: "^([1-9][0-9]{0,3})$".to_owned(),
+                },
+            ),
+            (
+                "pace".to_owned(),
+                GameArgInfo {
+                    description: "How fast the game plays (0-30)".to_owned(),
+                    regex: "^(30|([12][0-9]|[0-9])(.[0-9]*)?)$".to_owned(),
+                },
+            ),
         ])
     }
     async fn gen_instance(
@@ -57,12 +62,11 @@ impl game::Builder for Builder {
         param.timeout = param.timeout.or(Some(DEFAULT_TIMEOUT));
         let constraints = self.args().await;
 
+        let rounds_reg = Regex::new(&constraints["rounds"].regex).unwrap();
         let rounds = match arg(&args, "rounds", DEFAULT_ROUNDS) {
-            Ok(0) => return Err(format!("Cannot play for 0 rounds")),
             Ok(x) => {
-                let limits = &constraints["rounds"];
-                if (x as f64) > limits.max.unwrap() {
-                    return Err(format!("Too many rounds"))
+                if !rounds_reg.is_match(&x.to_string()) {
+                    return Err(format!("Invalid number of rounds"));
                 } else {
                     x
                 }
@@ -70,13 +74,12 @@ impl game::Builder for Builder {
             Err(x) => return Err(format!("Invaid number of rounds: {}", x)),
         };
 
+        let pace_reg = Regex::new(&constraints["pace"].regex).unwrap();
         let pace = match arg(&args, "pace", DEFAULT_PACE) {
             Ok(x) => {
-                let limits = &constraints["pace"];
-                if (x as f64) < limits.min.unwrap() || (x as f64) > limits.max.unwrap() {
-                    return Err(format!("Invalid pace"))
-                }
-                else {
+                if !pace_reg.is_match(&x.to_string()) {
+                    return Err(format!("Invalid pace"));
+                } else {
                     x
                 }
             }
