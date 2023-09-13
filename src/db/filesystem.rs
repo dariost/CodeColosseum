@@ -38,7 +38,7 @@ impl Database for FileSystem {
                             match read_dir.next_entry().await {
                                 Err(e) => error!("Unable to read directory entry: {}", e),
                                 Ok(Some(file)) => paths.push(file.path()),
-                                Ok(None) => break
+                                Ok(None) => break,
                             }
                         }
 
@@ -61,8 +61,12 @@ impl Database for FileSystem {
             }
             // Save game data to file and optionally call other system to process
             // match data
-            // TODO: Solve path traversal vulnerability
             Command::Store(match_data) => {
+                // Only alphanumeric ids are allowed
+                if !match_data.id.chars().all(char::is_alphanumeric) {
+                    error!("Invalid game ID: {}", match_data.id);
+                    return;
+                }
                 // Create directory for match data
                 let match_directory = format!("{}/{}", self.args.root_dir, &match_data.id);
                 if let Err(e) = tokio::fs::create_dir(&match_directory).await {
@@ -87,8 +91,16 @@ impl Database for FileSystem {
                 // TODO: Here you apply custom post process tools to generate batch resources
             }
             // Read match descriptor from file
-            // TODO: Solve path traversal vulnerability
             Command::Retrieve { id, response } => {
+                // Only alphanumeric ids are allowed
+                if !id.chars().all(char::is_alphanumeric) {
+                    error!("Invalid game ID: {}", id);
+                    if let Err(e) = response.send(Err(DatabaseError::InvalidID)) {
+                        error!("Unable to send error: {:?}", e);
+                    }
+                    return;
+                }
+
                 let input_path = format!("{}/{}/{}", self.args.root_dir, id, MATCH_DESCRIPTOR_FILE);
                 trace!("reading match descriptor: {}", input_path);
                 match tokio::fs::read(input_path).await {

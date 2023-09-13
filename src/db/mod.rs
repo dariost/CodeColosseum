@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc, oneshot};
-use tracing::info;
 use std::collections::HashMap;
 use std::fmt;
+use tokio::sync::{mpsc, oneshot};
+use tracing::info;
 
 use crate::tuning::QUEUE_BUFFER;
 
@@ -27,12 +27,12 @@ impl fmt::Display for MatchData {
         writeln!(f, "id: {}", self.id)?;
         writeln!(f, "game_name: {}", self.game_name)?;
         writeln!(f, "bot_count: {}", self.bot_count)?;
-        
+
         writeln!(f, "args:")?;
         for (key, value) in self.args.iter() {
             writeln!(f, "- {}: {}", key, value)?;
         }
-        
+
         writeln!(f, "players:")?;
         for player in &self.players {
             writeln!(f, "- {}", player)?;
@@ -40,7 +40,7 @@ impl fmt::Display for MatchData {
 
         match std::str::from_utf8(&self.history) {
             Err(_) => Err(fmt::Error),
-            Ok(history) =>  writeln!(f, "\n{}", history)
+            Ok(history) => writeln!(f, "\n{}", history),
         }
     }
 }
@@ -50,6 +50,7 @@ impl fmt::Display for MatchData {
 pub(crate) enum DatabaseError {
     FileNotFound,
     UnableToDeserialize,
+    InvalidID,
 }
 
 #[derive(Debug)]
