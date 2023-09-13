@@ -59,7 +59,6 @@ pub(crate) enum Command {
     List(oneshot::Sender<Vec<String>>),
     /// Returns the data of a match
     Retrieve {
-        // TODO: Can be extendend to support queries
         response: oneshot::Sender<Result<MatchData, DatabaseError>>,
         id: String,
     },

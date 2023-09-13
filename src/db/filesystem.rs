@@ -86,9 +86,6 @@ impl Database for FileSystem {
                         }
                     }
                 }
-
-                // Apply all post processes
-                // TODO: Here you apply custom post process tools to generate batch resources
             }
             // Read match descriptor from file
             Command::Retrieve { id, response } => {
