@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
+use crate::db::{DatabaseError, MatchData};
+
 pub(crate) const MAGIC: &str = "coco";
-pub(crate) const VERSION: u64 = 1;
+pub(crate) const VERSION: u64 = 2;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum Request {
@@ -35,12 +37,29 @@ pub(crate) enum Request {
         id: String,
     },
     SpectateLeave {},
+    HistoryMatchList,
+    HistoryMatch {
+        id: String,
+    },
+}
+
+/// All the informations available for a game
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct GameUsage {
+    pub name: String,
+    pub args: HashMap<String, GameArgInfo>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct GameArgInfo {
+    pub description: String,
+    pub regex: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum Reply {
     Handshake { magic: String, version: u64 },
-    GameList { games: Vec<String> },
+    GameList { games: Vec<GameUsage> },
     GameDescription { description: Option<String> },
     GameNew { id: Result<String, String> },
     LobbyList { info: Vec<MatchInfo> },
@@ -58,6 +77,8 @@ pub(crate) enum Reply {
     SpectateSynced {},
     SpectateEnded {},
     SpectateLeaved {},
+    HistoryMatchList(Vec<String>),
+    HistoryMatch(Result<MatchData, DatabaseError>),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
