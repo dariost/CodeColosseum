@@ -128,7 +128,7 @@ pub(crate) async fn start(args: crate::CliArgs) {
     let srv_game = game::start().await;
 
     let root_dir = args.database_dir.clone();
-    if let Err(e) = std::fs::create_dir_all(&root_dir) {
+    if let Err(e) = tokio::fs::create_dir_all(&root_dir).await {
         error!("Unable to create database directory: {}", e);
     }
 
