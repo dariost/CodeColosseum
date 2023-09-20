@@ -52,7 +52,7 @@ impl game::Instance for Instance {
         // Creo il vettore che conterrà il percorso valido
         let mut percorso_valido: Vec<String> = Vec::new();
 
-        // Inizzia sempre la partita il secondo giocatore che si conette
+        // Inizia sempre la partita il secondo giocatore che si conette
         _ = giocatore[0].output.write(("Sei i Bianchi\n").as_bytes()).await;
         _ = giocatore[1].output.write(("Sei i Neri\n").as_bytes()).await;
         _ = spectators.write(("Il giocatore ".to_owned() + &giocatore[0].name + " è i bianchi e il giocatore " + &giocatore[1].name + " è i neri.\n").as_bytes()).await;
@@ -66,7 +66,7 @@ impl game::Instance for Instance {
                 _ = spectators.write(("Turno bianco!\n").as_bytes()).await;
 
                 // Controllo chi deve muovere le pedine bianche 
-                if &giocatore[0].name == "ServerBot$0"
+                if giocatore[0].name.starts_with("ServerBot$")
                 {
                     // Faccio muovere le pedine binche al bot
                     damiera = bot::bot_bianco(damiera.clone(), &mut giocatore[1].output).await;
@@ -89,7 +89,7 @@ impl game::Instance for Instance {
                 _ = spectators.write(("Turno nero!\n").as_bytes()).await;
 
                 // Controllo chi deve muovere le pedine nere 
-                if &giocatore[1].name == "ServerBot$0"
+                if giocatore[1].name.starts_with("ServerBot$")
                 {
                     // Faccio muovere le pedine nere al bot
                     damiera = bot::bot_nero(damiera.clone(), &mut giocatore[0].output).await;
