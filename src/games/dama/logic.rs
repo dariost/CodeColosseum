@@ -96,8 +96,8 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
         let mut dama: bool = false;
 
         // Setto la posizione iniziale della pedina
-        let mut pedina_r: usize = mosse[0].chars().nth(0).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
-        let mut pedina_c: usize = mosse[0].chars().nth(1).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+        let mut pedina_r: usize = mosse[0].chars().nth(0).expect("Error to 'pedina_r' in verifica_percorso_bianco") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+        let mut pedina_c: usize = mosse[0].chars().nth(1).expect("Error to 'pedina_c' in verifica_percorso_bianco") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
         let mut mossa_r: usize;
         let mut mossa_c: usize;
 
@@ -117,8 +117,8 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
             }
             else {
                 // Setto la mossa successiva
-                mossa_r = m.chars().nth(0).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
-                mossa_c = m.chars().nth(1).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+                mossa_r = m.chars().nth(0).expect("Error to 'mossa_r' in verifica_percorso_bianco") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+                mossa_c = m.chars().nth(1).expect("Error to 'mossa_c' in verifica_percorso_bianco") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
                 
                 // Verifico le mosse e le cattura
                 if dama == false {
@@ -347,8 +347,8 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
         let mut dama: bool = false;
 
         // Setto la posizione iniziale della pedina
-        let mut pedina_r: usize = mosse[0].chars().nth(0).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
-        let mut pedina_c: usize = mosse[0].chars().nth(1).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+        let mut pedina_r: usize = mosse[0].chars().nth(0).expect("Error to 'pedina_r' in verifica_percorso_nero") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+        let mut pedina_c: usize = mosse[0].chars().nth(1).expect("Error to 'pedina_c' in verifica_percorso_nero") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
         let mut mossa_r: usize;
         let mut mossa_c: usize;
 
@@ -368,8 +368,8 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
             }
             else {
                 // Setto la mossa successiva
-                mossa_r = m.chars().nth(0).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
-                mossa_c = m.chars().nth(1).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+                mossa_r = m.chars().nth(0).expect("Error to 'mossa_r' in verifica_percorso_nero") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+                mossa_c = m.chars().nth(1).expect("Error to 'mossa_c' in verifica_percorso_nero") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
 
                 // Verifico le mosse e le cattura
                 if dama == false {
@@ -586,8 +586,8 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
 
 pub(crate) async fn aggionra_damiera<'a>(percorso_valido: Vec<String>, mut damiera: Vec<Vec<&'a str>>, giocatore: &mut Vec<Player>, spectators: &mut WriteHalf<DuplexStream>) ->  Vec<Vec<&'a str>> {
     // Setto la posizione iniziale della pedina
-    let mut pedina_r: usize = percorso_valido[0].chars().nth(0).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
-    let mut pedina_c: usize = percorso_valido[0].chars().nth(1).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene);
+    let mut pedina_r: usize = percorso_valido[0].chars().nth(0).expect("Error to 'pedina_r' in aggionra_damiera") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+    let mut pedina_c: usize = percorso_valido[0].chars().nth(1).expect("Error to 'pedina_c' in aggionra_damiera") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene);
     let mut mossa_r: usize;
     let mut mossa_c: usize;
 
@@ -603,8 +603,8 @@ pub(crate) async fn aggionra_damiera<'a>(percorso_valido: Vec<String>, mut damie
         }
         else {
             // Setto la mossa successiva
-            mossa_r = m.chars().nth(0).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
-            mossa_c = m.chars().nth(1).unwrap() as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+            mossa_r = m.chars().nth(0).expect("Error to 'mossa_r' in aggionra_damiera") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
+            mossa_c = m.chars().nth(1).expect("Error to 'mossa_c' in aggionra_damiera") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
 
             // Controllo se si fa una mossa o una cattura
             if (pedina_r == 0 && pedina_r + 1 == mossa_r) || 
