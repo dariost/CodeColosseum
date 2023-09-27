@@ -76,6 +76,12 @@ impl game::Instance for Instance {
                     // Verifico la validità del percorso dato dall'utente
                     percorso_valido = logic::verifica_percorso_bianco(damiera.clone(), &mut giocatore[0]).await;
 
+                    // Controllo se c'è stato un abbandono della partita
+                    if percorso_valido[0] == "Err"{
+                        _ = giocatore[1].output.write(("I binachi hanno abbandonato la partita.\nI neri vincono la partita!\n\n").as_bytes()).await;
+                        break;
+                    }
+
                     // Aggiorno la damiera
                     damiera = logic::aggionra_damiera(percorso_valido.clone(), damiera.clone(), &mut giocatore, &mut spectators).await;
                 }
@@ -98,6 +104,12 @@ impl game::Instance for Instance {
                 else {
                     // Verifico la validità del percorso dato dall'utente
                     percorso_valido = logic::verifica_percorso_nero(damiera.clone(), &mut giocatore[1]).await;
+
+                    // Controllo se c'è stato un abbandono della partita
+                    if percorso_valido[0] == "Err"{
+                        _ = giocatore[0].output.write(("I neri hanno abbandonato la partita.\nI bianchi vincono la partita!\n\n").as_bytes()).await;
+                        break;
+                    }
 
                     // Aggiorno la damiera
                     damiera = logic::aggionra_damiera(percorso_valido.clone(), damiera.clone(), &mut giocatore, &mut spectators).await;

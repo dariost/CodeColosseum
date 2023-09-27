@@ -92,6 +92,11 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
         // Chiedo all'utente che mosse vole fare
         mosse = percorso(giocatore).await;
 
+        // Verifico che il giocatore non abbia abbandonato
+        if mosse[0] == "Err" {
+            return mosse;
+        }
+
         // Setto se sto muovendo una pedina o una dama
         let mut dama: bool = false;
 
@@ -342,6 +347,11 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
         
         // Chiedo all'utente che mosse vole fare
         mosse = percorso(giocatore).await;
+
+        // Verifico che il giocatore non abbia abbandonato
+        if mosse[0] == "Err" {
+            return mosse;
+        }
 
         // Setto se sto muovendo una pedina o una dama
         let mut dama: bool = false;
@@ -688,7 +698,20 @@ async fn percorso(giocatore: &mut Player) -> Vec<String>{
         // Pulisco la variabili altrimenti si portano dietro tutti i valori precedenti
         percorso.clear();
         mosse.clear();
-        giocatore.input.read_line(&mut percorso).await.expect("Lettura della riga fallita !!!");
+        
+        // Controllo che il giocatore non abbia abbandonato la partita
+        match giocatore.input.read_line(&mut percorso).await {
+            Ok(t) => {
+
+                // Se viene ritornato 0 vuol dire che il giocatore ha abbandonato
+                if t == 0 {
+                    mosse.insert(0, "Err".to_string());
+                    return mosse;
+                }
+            },
+            Err(error) => println!("Error: {error}"),
+        }
+
         // Elimino tutti gli elementi non necessari dalla stringa
         percorso = percorso.replace(&['\n', '\r', '\t'][..], "");
         // Inserisco gli elementi in un vettore
