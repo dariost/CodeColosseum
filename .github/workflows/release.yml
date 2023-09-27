@@ -1,0 +1,58 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+        version:
+          description: 'Version'
+          required: true
+          default: '1'
+          type: string
+          
+        os:
+          description: 'Operative System'
+          required: true
+          default: 'x86_64-unknown-linux-musl'
+          type: choice
+          options:
+          - 'x86_64-pc-windows-gnu'
+          - 'x86_64-unknown-linux-musl'
+          - 'wasm32-wasi'
+          - 'x86_64-apple-darwin'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Compile
+        id: compile
+        uses: rust-build/rust-build.action@v1.4.0
+        with:
+          RUSTTARGET: ${{ inputs.os }}
+          UPLOAD_MODE: none
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coco.zip
+          path: ${{ steps.compile.outputs.BUILT_ARCHIVE }}
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: CocoV_${{ inputs.version }}
+          release_name: Release Coco V_${{ inputs.version }}
+          draft: false
+          prerelease: false
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          asset_path: ./${{ steps.compile.outputs.BUILT_ARCHIVE }}
+          asset_name: coco.zip
+          asset_content_type: application/zip
