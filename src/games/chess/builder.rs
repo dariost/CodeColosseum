@@ -9,6 +9,8 @@ use rand::rngs::{OsRng, StdRng};
 use rand::SeedableRng;
 use std::collections::HashMap;
 use tokio::time::Duration;
+use crate::proto::GameArgInfo;
+use regex::Regex;
 
 // Costanti di default per il timeout e il ritmo del gioco
 const DEFAULT_TIMEOUT: f64 = 90.0;
@@ -37,6 +39,18 @@ impl game::Builder for Builder {
     async fn description(&self) -> String {
         String::from(include_str!("description.md"))
     }
+    
+    async fn args(&self) -> HashMap<String, GameArgInfo> {
+        HashMap::from([
+            (
+                "pace".to_owned(),
+                GameArgInfo {
+                    description: "How fast the game plays (0-30)".to_owned(),
+                    regex: "^(30|([12][0-9]|[0-9])(.[0-9]*)?)$".to_owned(),
+                },
+            )
+        ])
+    }
 
     // Metodo asincrono che genera un'istanza del gioco
     async fn gen_instance(
@@ -53,12 +67,19 @@ impl game::Builder for Builder {
 
         // Controllo e impostazione del timeout del gioco
         param.timeout = param.timeout.or(Some(DEFAULT_TIMEOUT));
+        let constraints = self.args().await;
 
         // Calcolo del ritmo del gioco leggendo l'argomento "pace" da args
+        let pace_reg = Regex::new(&constraints["pace"].regex).unwrap();
         let pace = match arg(&args, "pace", DEFAULT_PACE) {
-            Ok(x) if x < 0.0 || x > 30.0 => return Err(format!("Invalid pace")),
-            Ok(x) => x,
-            Err(x) => return Err(format!("Invaid pace: {}", x)),
+            Ok(x) => {
+                if !pace_reg.is_match(&x.to_string()) {
+                    return Err(format!("Invalid pace"));
+                } else {
+                    x
+                }
+            }
+            Err(x) => return Err(format!("Invalid pace: {}", x)),
         };
 
         // Inizializzazione del generatore di numeri casuali (PRNG)

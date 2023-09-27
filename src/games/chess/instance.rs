@@ -67,6 +67,7 @@ impl game::Instance for Instance {
         lnout2!(p[1].output, "1");
         
         let mut turn = 0;
+        let mut turn_prec = 1;
         let mut current_color = Color::White;
         let mut retired = 0;
         let mut draw = 0;
@@ -75,7 +76,10 @@ impl game::Instance for Instance {
         while !board.check_king_mate(current_color) && retired == 0 && draw != 2 {
             
             println!("\n");
-            board.display();
+            if turn != turn_prec {
+            	board.display();
+            	turn_prec = turn
+            };
             
             let start = Instant::now();
             
@@ -152,5 +156,11 @@ impl game::Instance for Instance {
                 lnout2!(spectators, "CHECKMATE! White wins!");
             };
         }
+    }
+
+    async fn args(&self) -> HashMap<String, String> {
+        HashMap::from([
+            ("pace".to_owned(), format!("{:?}", self.pace))
+        ])
     }
 }
