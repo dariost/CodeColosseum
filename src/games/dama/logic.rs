@@ -816,3 +816,25 @@ pub(crate) async fn stampa_mossa (row: usize, col: usize) -> String{
     // Unisco le due stringhe convertite e le restituisco
     r.to_owned() + c
 }
+
+pub(crate) async fn converti_damiera(mut damiera: Vec<Vec<&str>>, dam_agg: String) -> Vec<Vec<&str>>{
+    
+    let mut n: usize = 0;
+
+    // Converto la damiera passata come stringa nel formato originale vettore di vettori di stringhe
+    for (r, v) in damiera.clone().iter().enumerate() {
+        for c in 0..v.len() {
+
+        match dam_agg.chars().nth(n){
+            Some('_') => damiera[r][c] = " ",
+            Some('n') => damiera[r][c] = "n",
+            Some('b') => damiera[r][c] = "b",
+            _ => println!("Errore: Un carattere non è stato convertito!"),
+        };
+
+        n += 1; 
+        }
+    }
+
+    damiera
+}

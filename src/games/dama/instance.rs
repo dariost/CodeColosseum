@@ -1,8 +1,8 @@
 use super::super::util::Player;
-use super::bot;
 use super::logic;
 use crate::game;
 use async_trait::async_trait;
+use tokio::io::AsyncBufReadExt;
 use tracing::warn;
 use rand::rngs::StdRng;
 use std::collections::HashMap;
@@ -29,9 +29,9 @@ impl game::Instance for Instance {
             lnout2!(spectators, &giocatore[i].name);
         }
 
-        lnout2!(giocatore[0].output, "Avvio la partita di dama...");
-        lnout2!(giocatore[1].output, "Avvio la partita di dama...");
-        lnout2!(spectators, "Avvio la partita di dama...");
+        _ = giocatore[0].output.write(("Avvio la partita di dama...\n").as_bytes()).await;
+        _ = giocatore[1].output.write(("Avvio la partita di dama...\n").as_bytes()).await;
+        _ = spectators.write(("Avvio la partita di dama...\n").as_bytes()).await;
 
         let mut damiera: Vec<Vec<&str>> = vec![vec![" ", "n", " ", "n", " ", "n", " ", "n"],
                                                vec!["n", " ", "n", " ", "n", " ", "n", " "],
@@ -50,7 +50,7 @@ impl game::Instance for Instance {
         let mut turno_binaco: bool = true;
 
         // Creo il vettore che conterrà il percorso valido
-        let mut percorso_valido: Vec<String> = Vec::new();
+        let mut percorso_valido: Vec<String>;
 
         // Inizia sempre la partita il secondo giocatore che si conette
         _ = giocatore[0].output.write(("Sei i Bianchi\n").as_bytes()).await;
@@ -68,9 +68,35 @@ impl game::Instance for Instance {
                 // Controllo chi deve muovere le pedine bianche 
                 if giocatore[0].name.starts_with("ServerBot$")
                 {
-                    // Faccio muovere le pedine binche al bot
-                    damiera = bot::bot_bianco(damiera.clone(), &mut giocatore[1].output).await;
-
+                    //Dico al bot cosa deve muovere
+                    lnout2!(giocatore[0].output, "Bianchi");
+                    
+                    // Passo la damiera come stringa
+                    lnout2!(giocatore[0].output, damiera.clone()
+                                                        .into_iter()
+                                                        .map(|c| c.into_iter().map(|p| match p { 
+                                                                                  " " => "_",
+                                                                                  _ => p
+                                                                              })
+                                                                              .collect::<Vec<&str>>()
+                                                                              .join(""))
+                                                        .collect::<Vec<String>>()
+                                                        .join(""));
+                    
+                    // Attendo la mossa del bot e la damiera aggioranta
+                    let mut buffer: String = String::new();
+                
+                    match giocatore[0].input.read_line(&mut buffer).await {
+                        Ok(_) => {
+                            // Separo la mossa dalla damiera
+                            let risposta: Vec<String> = buffer.split("|").map(|x| x.into()).collect();
+                            // Stampo la maossa
+                            _ = giocatore[1].output.write((risposta[0].clone() + "\n").as_bytes()).await;
+                            // Converto la damiera
+                            damiera = logic::converti_damiera(damiera.clone(), risposta[1].clone()).await;
+                        },
+                        Err(error) => println!("Errore: {error}"),
+                    };
                 }
                 else {
                     // Verifico la validità del percorso dato dall'utente
@@ -97,9 +123,35 @@ impl game::Instance for Instance {
                 // Controllo chi deve muovere le pedine nere 
                 if giocatore[1].name.starts_with("ServerBot$")
                 {
-                    // Faccio muovere le pedine nere al bot
-                    damiera = bot::bot_nero(damiera.clone(), &mut giocatore[0].output).await;
-
+                    //Dico al bot cosa deve muovere
+                    lnout2!(giocatore[1].output, "Neri");
+                    
+                    // Passo la damiera come stringa
+                    lnout2!(giocatore[1].output, damiera.clone()
+                                                        .into_iter()
+                                                        .map(|c| c.into_iter().map(|p| match p { 
+                                                                                  " " => "_",
+                                                                                  _ => p
+                                                                              })
+                                                                              .collect::<Vec<&str>>()
+                                                                              .join(""))
+                                                        .collect::<Vec<String>>()
+                                                        .join(""));
+                    
+                    // Attendo la mossa del bot e la damiera aggioranta
+                    let mut buffer: String = String::new();
+                
+                    match giocatore[1].input.read_line(&mut buffer).await {
+                        Ok(_) => {
+                            // Separo la mossa dalla damiera
+                            let risposta: Vec<String> = buffer.split("|").map(|x| x.into()).collect();
+                            // Stampo la maossa
+                            _ = giocatore[0].output.write((risposta[0].clone() + "\n").as_bytes()).await;
+                            // Converto la damiera
+                            damiera = logic::converti_damiera(damiera.clone(), risposta[1].clone()).await;
+                        },
+                        Err(error) => println!("Errore: {error}"),
+                    };
                 }
                 else {
                     // Verifico la validità del percorso dato dall'utente
@@ -121,6 +173,14 @@ impl game::Instance for Instance {
             
             // Stampo la damiera aggiornata
             logic::stampa_damiera(damiera.clone(), &mut giocatore, &mut spectators).await;
+        }
+
+        //Dico al bot che la partita è terminata
+        if giocatore[0].name.starts_with("ServerBot$"){
+            lnout2!(giocatore[0].output, "Stop");
+        }
+        else if giocatore[1].name.starts_with("ServerBot$"){
+            lnout2!(giocatore[1].output, "Stop");
         }
 
         // Fine del gioco
