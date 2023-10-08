@@ -3,14 +3,14 @@ use super::bot::Bot;
 use super::instance::Instance;
 use crate::game;
 use crate::games;
+use crate::proto::GameArgInfo;
 use async_trait::async_trait;
 use games::util::arg;
 use rand::rngs::{OsRng, StdRng};
 use rand::SeedableRng;
+use regex::Regex;
 use std::collections::HashMap;
 use tokio::time::Duration;
-use crate::proto::GameArgInfo;
-use regex::Regex;
 
 // Costanti di default per il timeout e il ritmo del gioco
 const DEFAULT_TIMEOUT: f64 = 90.0;
@@ -39,17 +39,15 @@ impl game::Builder for Builder {
     async fn description(&self) -> String {
         String::from(include_str!("description.md"))
     }
-    
+
     async fn args(&self) -> HashMap<String, GameArgInfo> {
-        HashMap::from([
-            (
-                "pace".to_owned(),
-                GameArgInfo {
-                    description: "How fast the game plays (0-30)".to_owned(),
-                    regex: "^(30|([12][0-9]|[0-9])(.[0-9]*)?)$".to_owned(),
-                },
-            )
-        ])
+        HashMap::from([(
+            "pace".to_owned(),
+            GameArgInfo {
+                description: "How fast the game plays (0-30)".to_owned(),
+                regex: "^(30|([12][0-9]|[0-9])(.[0-9]*)?)$".to_owned(),
+            },
+        )])
     }
 
     // Metodo asincrono che genera un'istanza del gioco
@@ -70,7 +68,7 @@ impl game::Builder for Builder {
         let constraints = self.args().await;
 
         // Calcolo del ritmo del gioco leggendo l'argomento "pace" da args
-        let pace_reg = Regex::new(&constraints["pace"].regex).unwrap();
+        let pace_reg = Regex::new(&constraints["pace"].regex).expect("Invalid Regex reading pace");
         let pace = match arg(&args, "pace", DEFAULT_PACE) {
             Ok(x) => {
                 if !pace_reg.is_match(&x.to_string()) {

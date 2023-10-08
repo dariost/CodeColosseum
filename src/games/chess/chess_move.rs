@@ -16,7 +16,16 @@ impl Point {
         if input.len() != 2 {
             None // Return None if input length is not 2
         } else {
-            let (x, y) = (input.chars().nth(0).unwrap(), input.chars().nth(1).unwrap());
+            let (x, y) = (
+                input
+                    .chars()
+                    .nth(0)
+                    .expect("INVALID_MOVE <Invalid Point input in position 0>"),
+                input
+                    .chars()
+                    .nth(1)
+                    .expect("INVALID_MOVE <Invalid Point input in position 1>"),
+            );
 
             // Checking if the characters represent a valid chess position
             if x < 'a' || x > 'h' || y < '1' || y > '8' {
@@ -24,8 +33,8 @@ impl Point {
             } else {
                 Some(Point {
                     // Parsing the characters into x and y coordinates
-                    x: x.to_digit(20).unwrap() as usize - 10,
-                    y: y.to_digit(10).unwrap() as usize - 1,
+                    x: x.to_digit(20).expect("INVALID_MOVE <Invalid x coordinate>") as usize - 10,
+                    y: y.to_digit(10).expect("INVALID_MOVE <Invalid y coordinate>") as usize - 1,
                 })
             }
         }
@@ -67,10 +76,16 @@ impl MoveType {
         let mut rng = rand::thread_rng(); // Creating a random number generator instance
         let random_file_from = rng.gen_range(0..8); // Generating a random file index
         let random_rank_from = rng.gen_range(0..8); // Generating a random rank index
-        let random_file_to   = rng.gen_range(0..8); // Generating a random file index
-        let random_rank_to   = rng.gen_range(0..8); // Generating a random rank index
+        let random_file_to = rng.gen_range(0..8); // Generating a random file index
+        let random_rank_to = rng.gen_range(0..8); // Generating a random rank index
 
-        format!("{}{} {}{}", files[random_file_from], ranks[random_rank_from], files[random_file_to], ranks[random_rank_to]) // Formatting and returning the random move string
+        format!(
+            "{}{} {}{}",
+            files[random_file_from],
+            ranks[random_rank_from],
+            files[random_file_to],
+            ranks[random_rank_to]
+        ) // Formatting and returning the random move string
     }
 
     // Implementing a method to parse a string input into a MoveType enum
@@ -78,46 +93,61 @@ impl MoveType {
         let mut words = input.split(" "); // Splitting the input string into words
         match input.split(" ").count() {
             // Matching the count of words in the input
-            2 => match Move::parse(words.next().unwrap(), words.next().unwrap()) {
+            2 => match Move::parse(
+                words.next().expect("Error parsing the move"),
+                words.next().expect("Error parsing the move"),
+            ) {
                 None => None,
                 Some(mv) => Some(MoveType::Basic(mv)),
             },
             3 => {
-                if words.next().unwrap() != "enpassant" {
+                if words.next().expect("Error parsing the move") != "enpassant" {
                     None
                 } else {
-                    match Move::parse(words.next().unwrap(), words.next().unwrap()) {
+                    match Move::parse(
+                        words.next().expect("Error parsing the move"),
+                        words.next().expect("Error parsing the move"),
+                    ) {
                         None => None,
                         Some(mv) => Some(MoveType::EnPassant(mv)),
                     }
                 }
-            },
+            }
             4 => {
-                if words.next().unwrap() != "promote" {
+                if words.next().expect("INVALID_MOVE") != "promote" {
                     None
                 } else {
                     match (
-                        Move::parse(words.next().unwrap(), words.next().unwrap()),
-                        Piece::parse(words.next().unwrap()),
+                        Move::parse(
+                            words.next().expect("Error parsing the move"),
+                            words.next().expect("Error parsing the move"),
+                        ),
+                        Piece::parse(words.next().expect("Error parsing the move")),
                     ) {
                         (_, None) | (None, _) => None,
                         (Some(mv), Some(piece)) => Some(MoveType::Promotion(mv, piece)),
                     }
                 }
-            },
+            }
             5 => {
-                if words.next().unwrap() != "castle" {
+                if words.next().expect("Error parsing the move") != "castle" {
                     None
                 } else {
                     match (
-                        Move::parse(words.next().unwrap(), words.next().unwrap()),
-                        Move::parse(words.next().unwrap(), words.next().unwrap()),
+                        Move::parse(
+                            words.next().expect("Error parsing the move"),
+                            words.next().expect("Error parsing the move"),
+                        ),
+                        Move::parse(
+                            words.next().expect("Error parsing the move"),
+                            words.next().expect("Error parsing the move"),
+                        ),
                     ) {
                         (_, None) | (None, _) => None,
                         (Some(mvk), Some(mvr)) => Some(MoveType::Castling(mvk, mvr)),
                     }
                 }
-            },
+            }
             _ => None,
         }
     }

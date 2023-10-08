@@ -1,9 +1,9 @@
 #[macro_use]
 mod util;
 
+mod chess;
 mod roshambo;
 mod royalur;
-mod chess;
 
 use crate::game::Builder;
 

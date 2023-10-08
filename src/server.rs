@@ -25,7 +25,12 @@ struct CliArgs {
     verification_password: Option<String>,
     #[clap(short, long, help = "Send logs to journald")]
     journald: bool,
-    #[clap(short, long, help = "Root folder for matches database", default_value = "matches")]
+    #[clap(
+        short,
+        long,
+        help = "Root folder for matches database",
+        default_value = "matches"
+    )]
     database_dir: String,
     #[cfg(unix)]
     #[clap(short, long, help = "Use bind address as a Unix Domain Socket")]
