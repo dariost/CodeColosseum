@@ -2,7 +2,6 @@ use super::super::util::Player;
 use super::logic;
 use crate::game;
 use async_trait::async_trait;
-use tokio::io::AsyncBufReadExt;
 use tracing::warn;
 use rand::rngs::StdRng;
 use std::collections::HashMap;
@@ -42,7 +41,7 @@ impl game::Instance for Instance {
                                                vec![" ", "b", " ", "b", " ", "b", " ", "b"],
                                                vec!["b", " ", "b", " ", "b", " ", "b", " "]
                                               ];
-
+        
         // Stampo la damiera
         logic::stampa_damiera(damiera.clone(), &mut giocatore, &mut spectators).await;
 
@@ -50,7 +49,7 @@ impl game::Instance for Instance {
         let mut turno_binaco: bool = true;
 
         // Creo il vettore che conterrà il percorso valido
-        let mut percorso_valido: Vec<String>;
+        let mut percorso_valido: Vec<String> = Vec::new();
 
         // Inizia sempre la partita il secondo giocatore che si conette
         _ = giocatore[0].output.write(("Sei i Bianchi\n").as_bytes()).await;
@@ -58,115 +57,55 @@ impl game::Instance for Instance {
         _ = spectators.write(("Il giocatore ".to_owned() + &giocatore[0].name + " è i bianchi e il giocatore " + &giocatore[1].name + " è i neri.\n").as_bytes()).await;
 
         // Avvio il gioco
-        while !logic::partita_in_corso(damiera.clone(), &mut giocatore, &mut spectators).await {
+        while !logic::partita_in_corso(damiera.clone(), &mut giocatore, &mut spectators, turno_binaco).await {
             
             if turno_binaco { // Bianchi
-                _ = giocatore[0].output.write(("Turno bianco!\nE' il tuo turno.\n\n").as_bytes()).await;
-                _ = giocatore[1].output.write(("Turno bianco!\n").as_bytes()).await;
-                _ = spectators.write(("Turno bianco!\n").as_bytes()).await;
-
-                // Controllo chi deve muovere le pedine bianche 
-                if giocatore[0].name.starts_with("ServerBot$")
-                {
-                    //Dico al bot cosa deve muovere
-                    lnout2!(giocatore[0].output, "Bianchi");
-                    
-                    // Passo la damiera come stringa
-                    lnout2!(giocatore[0].output, damiera.clone()
-                                                        .into_iter()
-                                                        .map(|c| c.into_iter().map(|p| match p { 
-                                                                                  " " => "_",
-                                                                                  _ => p
-                                                                              })
-                                                                              .collect::<Vec<&str>>()
-                                                                              .join(""))
-                                                        .collect::<Vec<String>>()
-                                                        .join(""));
-                    
-                    // Attendo la mossa del bot e la damiera aggioranta
-                    let mut buffer: String = String::new();
                 
-                    match giocatore[0].input.read_line(&mut buffer).await {
-                        Ok(_) => {
-                            // Separo la mossa dalla damiera
-                            let risposta: Vec<String> = buffer.split("|").map(|x| x.into()).collect();
-                            // Stampo la maossa
-                            _ = giocatore[1].output.write((risposta[0].clone() + "\n").as_bytes()).await;
-                            // Converto la damiera
-                            damiera = logic::converti_damiera(damiera.clone(), risposta[1].clone()).await;
-                        },
-                        Err(error) => println!("Errore: {error}"),
-                    };
-                }
-                else {
-                    // Verifico la validità del percorso dato dall'utente
-                    percorso_valido = logic::verifica_percorso_bianco(damiera.clone(), &mut giocatore[0]).await;
-
-                    // Controllo se c'è stato un abbandono della partita
-                    if percorso_valido[0] == "Err"{
-                        _ = giocatore[1].output.write(("I binachi hanno abbandonato la partita.\nI neri vincono la partita!\n\n").as_bytes()).await;
-                        break;
-                    }
-
-                    // Aggiorno la damiera
-                    damiera = logic::aggionra_damiera(percorso_valido.clone(), damiera.clone(), &mut giocatore, &mut spectators).await;
+                // Dico al giocatore cosa deve muovere
+                lnout2!(giocatore[0].output, "Turno bianco!");
+                _ = giocatore[1].output.write(("Attendi il tuo turno!\n").as_bytes()).await;
+                _ = spectators.write(("Turno bianco!\n").as_bytes()).await;
+                
+                // Verifico la validità del percorso dato dall'utente
+                percorso_valido = logic::verifica_percorso_bianco(damiera.clone(), &mut giocatore[0]).await;
+                
+                // Controllo se c'è stato un abbandono della partita
+                if percorso_valido[0] == "Err"{
+                    _ = giocatore[1].output.write(("I binachi hanno abbandonato la partita.\nI neri vincono la partita!\n\n").as_bytes()).await;
+                    break;
                 }
 
+                // Invio la mossa fatta all'avversario
+                lnout2!(giocatore[1].output, percorso_valido.clone().into_iter().map(|c| c.to_string()).collect::<Vec<String>>().join(" "));
+
+                // Aggiorno la damiera
+                damiera = logic::aggionra_damiera(percorso_valido.clone(), damiera.clone()).await;
+                
                 // Cambio il turno di gioco
                 turno_binaco = false;
             }
             else { // Neri
-                _ = giocatore[0].output.write(("Turno nero!\n").as_bytes()).await;
-                _ = giocatore[1].output.write(("Turno nero!\nE' il tuo turno.\n\n").as_bytes()).await;
-                _ = spectators.write(("Turno nero!\n").as_bytes()).await;
-
-                // Controllo chi deve muovere le pedine nere 
-                if giocatore[1].name.starts_with("ServerBot$")
-                {
-                    //Dico al bot cosa deve muovere
-                    lnout2!(giocatore[1].output, "Neri");
-                    
-                    // Passo la damiera come stringa
-                    lnout2!(giocatore[1].output, damiera.clone()
-                                                        .into_iter()
-                                                        .map(|c| c.into_iter().map(|p| match p { 
-                                                                                  " " => "_",
-                                                                                  _ => p
-                                                                              })
-                                                                              .collect::<Vec<&str>>()
-                                                                              .join(""))
-                                                        .collect::<Vec<String>>()
-                                                        .join(""));
-                    
-                    // Attendo la mossa del bot e la damiera aggioranta
-                    let mut buffer: String = String::new();
                 
-                    match giocatore[1].input.read_line(&mut buffer).await {
-                        Ok(_) => {
-                            // Separo la mossa dalla damiera
-                            let risposta: Vec<String> = buffer.split("|").map(|x| x.into()).collect();
-                            // Stampo la maossa
-                            _ = giocatore[0].output.write((risposta[0].clone() + "\n").as_bytes()).await;
-                            // Converto la damiera
-                            damiera = logic::converti_damiera(damiera.clone(), risposta[1].clone()).await;
-                        },
-                        Err(error) => println!("Errore: {error}"),
-                    };
+                // Dico al giocatore cosa deve muovere
+                lnout2!(giocatore[1].output, "Turno nero!");
+                _ = giocatore[0].output.write(("Attendi il tuo turno!\n").as_bytes()).await;
+                _ = spectators.write(("Turno nero!\n").as_bytes()).await;
+                
+                // Verifico la validità del percorso dato dall'utente
+                percorso_valido = logic::verifica_percorso_nero(damiera.clone(), &mut giocatore[1]).await;
+                
+                // Controllo se c'è stato un abbandono della partita
+                if percorso_valido[0] == "Err"{
+                    _ = giocatore[0].output.write(("I neri hanno abbandonato la partita.\nI bianchi vincono la partita!\n\n").as_bytes()).await;
+                    break;
                 }
-                else {
-                    // Verifico la validità del percorso dato dall'utente
-                    percorso_valido = logic::verifica_percorso_nero(damiera.clone(), &mut giocatore[1]).await;
 
-                    // Controllo se c'è stato un abbandono della partita
-                    if percorso_valido[0] == "Err"{
-                        _ = giocatore[0].output.write(("I neri hanno abbandonato la partita.\nI bianchi vincono la partita!\n\n").as_bytes()).await;
-                        break;
-                    }
+                // Invio la mossa fatta all'avversario
+                lnout2!(giocatore[0].output, percorso_valido.clone().into_iter().map(|c| c.to_string()).collect::<Vec<String>>().join(" "));
 
-                    // Aggiorno la damiera
-                    damiera = logic::aggionra_damiera(percorso_valido.clone(), damiera.clone(), &mut giocatore, &mut spectators).await;
-                }
-        
+                // Aggiorno la damiera
+                damiera = logic::aggionra_damiera(percorso_valido.clone(), damiera.clone()).await;
+                
                 // Cambio il turno di gioco
                 turno_binaco = true;
             }
@@ -175,17 +114,9 @@ impl game::Instance for Instance {
             logic::stampa_damiera(damiera.clone(), &mut giocatore, &mut spectators).await;
         }
 
-        //Dico al bot che la partita è terminata
-        if giocatore[0].name.starts_with("ServerBot$"){
-            lnout2!(giocatore[0].output, "Stop");
-        }
-        else if giocatore[1].name.starts_with("ServerBot$"){
-            lnout2!(giocatore[1].output, "Stop");
-        }
-
         // Fine del gioco
-         _ = giocatore[0].output.write(("Per iniziare una nuova partira riavvia il gioco ;)\n\n").as_bytes()).await;
-         _ = giocatore[1].output.write(("Per iniziare una nuova partira riavvia il gioco ;)\n\n").as_bytes()).await;
-         _ = spectators.write(("Per iniziare una nuova partira riavvia il gioco ;)\n\n").as_bytes()).await;
+         _ = giocatore[0].output.write(("Game Over ;)\n\n").as_bytes()).await;
+         _ = giocatore[1].output.write(("Game Over ;)\n\n").as_bytes()).await;
+         _ = spectators.write(("Game Over ;)\n\n").as_bytes()).await;
     }
 }

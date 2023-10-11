@@ -1,13 +1,13 @@
 use super::super::util::Player;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, DuplexStream, WriteHalf};
 
-pub(crate) async fn partita_in_corso(damiera: Vec<Vec<&str>>, giocatore: &mut Vec<Player>, spectators: &mut WriteHalf<DuplexStream>) -> bool {
+pub(crate) async fn partita_in_corso(damiera: Vec<Vec<&str>>, giocatore: &mut Vec<Player>, spectators: &mut WriteHalf<DuplexStream>, turno_binaco: bool) -> bool {
     let mut fine_partita: bool = false;
     let mut n_pedine_bianche: usize = 0;
     let mut n_pedine_nere: usize = 0;
 
     // Conto le pedine rimaste a ogni giocatore
-    for r in damiera {
+    for r in damiera.clone() {
         for c in r {
             if c == "b" || c == "B" {
                 n_pedine_bianche += 1;
@@ -18,9 +18,9 @@ pub(crate) async fn partita_in_corso(damiera: Vec<Vec<&str>>, giocatore: &mut Ve
         }
     }
 
-    // Se un giocatore esaurisce le pedine fermo il gioco
+    // Se un giocatore esaurisce le pedine o le mossa fermo il gioco
     if n_pedine_bianche == 0 {
-        _ = giocatore[0].output.write(("I neri vincono la partita!\n\n").as_bytes()).await;
+        _ = giocatore[0].output.write(("Non hai più pedine disponibili.\nI neri vincono la partita!\n\n").as_bytes()).await;
         _ = giocatore[1].output.write(("I neri vincono la partita!\n\n").as_bytes()).await;
         _ = spectators.write(("I neri vincono la partita!\n\n").as_bytes()).await;
         
@@ -28,8 +28,23 @@ pub(crate) async fn partita_in_corso(damiera: Vec<Vec<&str>>, giocatore: &mut Ve
     }
     else if n_pedine_nere == 0 {
         _ = giocatore[0].output.write(("I bianchi vincono la partita!\n\n").as_bytes()).await;
-        _ = giocatore[1].output.write(("I bianchi vincono la partita!\n\n").as_bytes()).await;
+        _ = giocatore[1].output.write(("Non hai più pedine disponibili.\nI bianchi vincono la partita!\n\n").as_bytes()).await;
         _ = spectators.write(("I bianchi vincono la partita!\n\n").as_bytes()).await;
+
+        fine_partita = true;
+    }
+    else if mosse_possibili(damiera.clone(), turno_binaco).await == false // Controllo se è possibile per il prossimo giocatore fare uno spostamento o una cattura
+    {
+        if turno_binaco == true {
+            _ = giocatore[0].output.write(("Non hai più mosse disponibili.\nI neri vincono la partita!\n\n").as_bytes()).await;
+            _ = giocatore[1].output.write(("I bianchi non hanno più mosse disponibili.\nI neri vincono la partita!\n\n").as_bytes()).await;
+            _ = spectators.write(("I bianchi non hanno più mosse disponibili.\nI neri vincono la partita!\n\n").as_bytes()).await;
+        }
+        else {
+            _ = giocatore[0].output.write(("I neri non hanno più mosse disponibili.\nI bianchi vincono la partita!\n\n").as_bytes()).await;
+            _ = giocatore[1].output.write(("Non hai più mosse disponibili.\nI bianchi vincono la partita!\n\n").as_bytes()).await;
+            _ = spectators.write(("I neri non hanno più mosse disponibili.\nI bianchi vincono la partita!\n\n").as_bytes()).await;
+        }
 
         fine_partita = true;
     }
@@ -37,7 +52,230 @@ pub(crate) async fn partita_in_corso(damiera: Vec<Vec<&str>>, giocatore: &mut Ve
     fine_partita    
 }
 
-pub(crate) async fn stampa_damiera(damiera: Vec<Vec<&str>>, giocatore: &mut Vec<Player>, spectators: &mut WriteHalf<DuplexStream>){
+async fn mosse_possibili(damiera: Vec<Vec<&str>>, turno_binaco: bool) -> bool {
+
+    let mut mossa: bool = false;                    // Setto se è possibile o meno fare una mossa che sia uno spostamento o una cattura
+    let mut pedine: Vec<Vec<usize>> = Vec::new();   // Setto il vettore che contiene le pedine del giocatore
+    let mut dame: Vec<Vec<usize>> = Vec::new();     // Setto il vettore che contiene le dame del giocatore
+    let mut row: usize;
+    let mut col: usize;
+
+    if turno_binaco == true {
+        
+        // Prelevo le Dame e le pedine binche
+        for r in 0..damiera.len() {
+            for c in 0..damiera[r].len() {
+            
+                if damiera[r][c] == "b" {
+                    pedine.push(vec![r, c]);
+                }
+                else if damiera[r][c] == "B" {
+                    dame.push(vec![r, c]);
+                }
+            }
+        }
+
+        // Controllo se le pedine bianche possono muovere o mangiare
+        if pedine.len() > 0 {
+            for n in 0..pedine.len() {
+                row = pedine[n][0];
+                col = pedine[n][1];
+
+                // Controllo gli spostamenti
+                if ((row as i32) - 1 >= 0 && (col as i32) - 1 >= 0) && 
+                damiera[row-1][col-1] == " " {
+                    // Spostamento SX su
+                    mossa = true;
+                }
+                else if ((row as i32) - 1 >= 0 && (col as i32) + 1 <= 7) && 
+                damiera[row-1][col+1] == " " {
+                    // Spostamento DX su
+                    mossa = true;
+                }
+
+                // Controllo le cetture
+                if ((row as i32) - 2 >= 0 && (col as i32) - 2 >= 0) && 
+                        damiera[row-1][col-1] == "n" &&
+                        damiera[row-2][col-2] == " " {
+                    // Cattura SX su
+                    mossa = true;
+                }
+                else if ((row as i32) - 2 >= 0 && (col as i32) + 2 <= 7) && 
+                        damiera[row-1][col+1] == "n" &&
+                        damiera[row-2][col+2] == " " {
+                    // Cattura verso DX su
+                    mossa = true;
+                }
+            }
+        }
+
+        // Controllo se le dame bianche possono muovere o mangiare
+        if dame.len() > 0 {
+            for n in 0..dame.len() {
+                row = dame[n][0];
+                col = dame[n][1];
+
+                // Controllo gli spostamenti
+                if ((row as i32) - 1 >= 0 && (col as i32) - 1 >= 0) && 
+                damiera[row-1][col-1] == " " {
+                    // Spostamento SX su
+                    mossa = true;
+                }
+                else if ((row as i32) - 1 >= 0 && (col as i32) + 1 <= 7) && 
+                damiera[row-1][col+1] == " " {
+                    // Spostamento DX su
+                    mossa = true;
+                }
+                if ((row as i32) + 1 <= 7 && (col as i32) + 1 <= 7) && 
+                damiera[row+1][col+1] == " " {
+                    // Spostamento DX giù
+                    mossa = true;
+                }
+                else if ((row as i32) + 1 <= 0 && (col as i32) - 1 >= 0) && 
+                damiera[row+1][col-1] == " " {
+                    // Spostamento SX giù
+                    mossa = true;
+                }
+
+                // Controllo le cetture
+                if ((row as i32) - 2 >= 0 && (col as i32) - 2 >= 0) && 
+                   (damiera[row-1][col-1] == "n" || damiera[row-1][col-1] == "N") &&
+                        damiera[row-2][col-2] == " " {
+                    // Catturo verso SX su
+                    mossa = true;
+                }
+                else if ((row as i32) - 2 >= 0 && (col as i32) + 2 <= 7) && 
+                        (damiera[row-1][col+1] == "n" || damiera[row-1][col+1] == "N") &&
+                        damiera[row-2][col+2] == " " {
+                    // Catturo verso DX su
+                    mossa = true;
+                }
+                else if ((row as i32) + 2 <= 7 && (col as i32) + 2 <= 7) && 
+                        (damiera[row+1][col+1] == "n" || damiera[row+1][col+1] == "N") &&
+                        damiera[row+2][col+2] == " " {
+                    // Catturo verso DX giù
+                    mossa = true;
+                }
+                else if ((row as i32) + 2 <= 7 && (col as i32) - 2 >= 0) && 
+                        (damiera[row+1][col-1] == "n" || damiera[row+1][col-1] == "N") &&
+                        damiera[row+1][col-1] == " " {
+                    // Catturo verso SX giù
+                    mossa = true;
+                }
+            }
+        }
+    }
+    else {
+
+        // Prelevo le Dame e le pedine nere
+        for r in 0..damiera.len() {
+            for c in 0..damiera[r].len() {
+            
+                if damiera[r][c] == "n" {
+                    pedine.push(vec![r, c]);
+                }
+                else if damiera[r][c] == "N" {
+                    dame.push(vec![r, c]);
+                }
+            }
+        }
+
+        // Controllo se le pedine nere possono muovere o mangiare
+        if pedine.len() > 0 {
+            for n in 0..pedine.len() {
+                row = pedine[n][0];
+                col = pedine[n][1];
+
+                // Controllo gli spostamenti
+                if ((row as i32) + 1 <= 7 && (col as i32) + 1 <= 7) && 
+                damiera[row+1][col+1] == " " {
+                    // Spostamento DX giù
+                    mossa = true;
+                }
+                else if ((row as i32) + 1 <= 7 && (col as i32) - 1 >= 0) && 
+                damiera[row+1][col-1] == " " {
+                    // Spostamento SX giù
+                    mossa = true;
+                }
+
+                // Controllo le cetture
+                if ((row as i32) + 2 <= 7 && (col as i32) + 2 <= 7) && 
+                        damiera[row+1][col+1] == "b" &&
+                        damiera[row+2][col+2] == " " {
+                    // Cattura DX giù
+                    mossa = true;
+                }
+                else if ((row as i32) + 2 <= 7 && (col as i32) - 2 >= 0) && 
+                        damiera[row+1][col-1] == "b" &&
+                        damiera[row+2][col-2] == " " {
+                    // Cattura verso SX giù
+                    mossa = true;
+                }
+            }
+        }
+
+        // Controllo se le dame nere possono muovere o mangiare
+        if dame.len() > 0 {
+            for n in 0..dame.len() {
+                row = dame[n][0];
+                col = dame[n][1];
+
+                // Controllo gli spostamenti
+                if ((row as i32) - 1 >= 0 && (col as i32) - 1 >= 0) && 
+                damiera[row-1][col-1] == " " {
+                    // Spostamento SX su
+                    mossa = true;
+                }
+                else if ((row as i32) - 1 >= 0 && (col as i32) + 1 <= 7) && 
+                damiera[row-1][col+1] == " " {
+                    // Spostamento DX su
+                    mossa = true;
+                }
+                if ((row as i32) + 1 <= 7 && (col as i32) + 1 <= 7) && 
+                damiera[row+1][col+1] == " " {
+                    // Spostamento DX giù
+                    mossa = true;
+                }
+                else if ((row as i32) + 1 <= 0 && (col as i32) - 1 >= 0) && 
+                damiera[row+1][col-1] == " " {
+                    // Spostamento SX giù
+                    mossa = true;
+                }
+
+                // Controllo le cetture
+                if ((row as i32) - 2 >= 0 && (col as i32) - 2 >= 0) && 
+                   (damiera[row-1][col-1] == "b" || damiera[row-1][col-1] == "B") &&
+                        damiera[row-2][col-2] == " " {
+                    // Catturo verso SX su
+                    mossa = true;
+                }
+                else if ((row as i32) - 2 >= 0 && (col as i32) + 2 <= 7) && 
+                        (damiera[row-1][col+1] == "b" || damiera[row-1][col+1] == "B") &&
+                        damiera[row-2][col+2] == " " {
+                    // Catturo verso DX su
+                    mossa = true;
+                }
+                else if ((row as i32) + 2 <= 7 && (col as i32) + 2 <= 7) && 
+                        (damiera[row+1][col+1] == "b" || damiera[row+1][col+1] == "B") &&
+                        damiera[row+2][col+2] == " " {
+                    // Catturo verso DX giù
+                    mossa = true;
+                }
+                else if ((row as i32) + 2 <= 7 && (col as i32) - 2 >= 0) && 
+                        (damiera[row+1][col-1] == "b" || damiera[row+1][col-1] == "B") &&
+                        damiera[row+1][col-1] == " " {
+                    // Catturo verso SX giù
+                    mossa = true;
+                }
+            }
+        }
+    }
+
+    // Restituisco se è possibile compiere una mossa per il prossimo turno
+    mossa
+}
+
+pub(crate) async fn stampa_damiera(damiera: Vec<Vec<&str>>, giocatore: &mut Vec<Player>, spectators: &mut WriteHalf<DuplexStream>) {
     
     let mut stampa = String::new();
     
@@ -94,7 +332,7 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
 
         // Verifico che il giocatore non abbia abbandonato
         if mosse[0] == "Err" {
-            return mosse;
+            return mosse
         }
 
         // Setto se sto muovendo una pedina o una dama
@@ -350,7 +588,7 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
 
         // Verifico che il giocatore non abbia abbandonato
         if mosse[0] == "Err" {
-            return mosse;
+            return mosse
         }
 
         // Setto se sto muovendo una pedina o una dama
@@ -594,13 +832,13 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
     mosse
 }
 
-pub(crate) async fn aggionra_damiera<'a>(percorso_valido: Vec<String>, mut damiera: Vec<Vec<&'a str>>, giocatore: &mut Vec<Player>, spectators: &mut WriteHalf<DuplexStream>) ->  Vec<Vec<&'a str>> {
+pub(crate) async fn aggionra_damiera<'a>(percorso_valido: Vec<String>, mut damiera: Vec<Vec<&'a str>>) ->  Vec<Vec<&'a str>> {
     // Setto la posizione iniziale della pedina
     let mut pedina_r: usize = percorso_valido[0].chars().nth(0).expect("Error to 'pedina_r' in aggionra_damiera") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene)
     let mut pedina_c: usize = percorso_valido[0].chars().nth(1).expect("Error to 'pedina_c' in aggionra_damiera") as usize - 0x30; // 0x30 = 0 nella tabella ASCII (Altrimenti non converte bene);
     let mut mossa_r: usize;
     let mut mossa_c: usize;
-
+    
     // Identifico la pedina che devo muovere
     let pedina: &str = damiera[pedina_r][pedina_c];
 
@@ -645,9 +883,7 @@ pub(crate) async fn aggionra_damiera<'a>(percorso_valido: Vec<String>, mut damie
                     damiera[pedina_r + 1][pedina_c - 1] = " ";
                 }
                 else {
-                    _ = giocatore[0].output.write(("Qualcosa è andato storto nell'aggiornamento della damiera!\n").as_bytes()).await;
-                    _ = giocatore[1].output.write(("Qualcosa è andato storto nell'aggiornamento della damiera!\n").as_bytes()).await;
-                    _ = spectators.write(("Qualcosa è andato storto nell'aggiornamento della damiera!\n").as_bytes()).await;
+                    println!("Errore: Qualcosa è andato storto nell'aggiornamento della damiera!");
                 }
 
                 // Se mi trovo all'ultima mossa setto la nuova posizione della pedina
@@ -667,7 +903,7 @@ pub(crate) async fn aggionra_damiera<'a>(percorso_valido: Vec<String>, mut damie
     damiera
 }
 
-pub(crate) async fn dama(mut pedina: &str, mossa_r: usize) -> &str{
+pub(crate) async fn dama(mut pedina: &str, mossa_r: usize) -> &str {
 
     // Verifico se ho fatto dama
     if pedina == "b" && mossa_r == 0 {
@@ -683,7 +919,7 @@ pub(crate) async fn dama(mut pedina: &str, mossa_r: usize) -> &str{
     }
 }
 
-async fn percorso(giocatore: &mut Player) -> Vec<String>{
+async fn percorso(giocatore: &mut Player) -> Vec<String> {
     
     // Inizializzo le variabili
     let mut percorso: String = String::new();
@@ -706,7 +942,7 @@ async fn percorso(giocatore: &mut Player) -> Vec<String>{
                 // Se viene ritornato 0 vuol dire che il giocatore ha abbandonato
                 if t == 0 {
                     mosse.insert(0, "Err".to_string());
-                    return mosse;
+                    return mosse
                 }
             },
             Err(error) => println!("Error: {error}"),
@@ -748,12 +984,12 @@ async fn percorso(giocatore: &mut Player) -> Vec<String>{
             _ = giocatore.output.write(("\nMossa non valida riprova!\n").as_bytes()).await;
         }
     }
-    
+
     // Restituisco le mosse convertire
     mosse
 }
 
-async fn conv_mossa (posizione: &str) -> String{
+pub(crate) async fn conv_mossa (posizione: &str) -> String {
 
     // Convertitore di riga
     let row: &str = match posizione.chars().nth(0){
@@ -785,7 +1021,7 @@ async fn conv_mossa (posizione: &str) -> String{
     row.to_owned() + col
 }
 
-pub(crate) async fn stampa_mossa (row: usize, col: usize) -> String{
+pub(crate) async fn stampa_mossa (row: usize, col: usize) -> String {
 
     // Convertitore di riga
     let r: &str = match row{
@@ -815,26 +1051,4 @@ pub(crate) async fn stampa_mossa (row: usize, col: usize) -> String{
 
     // Unisco le due stringhe convertite e le restituisco
     r.to_owned() + c
-}
-
-pub(crate) async fn converti_damiera(mut damiera: Vec<Vec<&str>>, dam_agg: String) -> Vec<Vec<&str>>{
-    
-    let mut n: usize = 0;
-
-    // Converto la damiera passata come stringa nel formato originale vettore di vettori di stringhe
-    for (r, v) in damiera.clone().iter().enumerate() {
-        for c in 0..v.len() {
-
-        match dam_agg.chars().nth(n){
-            Some('_') => damiera[r][c] = " ",
-            Some('n') => damiera[r][c] = "n",
-            Some('b') => damiera[r][c] = "b",
-            _ => println!("Errore: Un carattere non è stato convertito!"),
-        };
-
-        n += 1; 
-        }
-    }
-
-    damiera
 }

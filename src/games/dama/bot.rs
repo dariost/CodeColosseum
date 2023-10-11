@@ -17,8 +17,6 @@ impl game::Bot for Bot {
         lnin!(input); // Leggo il mio nome
         lnin!(input); // Leggo il nome dell'avversario
 
-        let mut fine_partita: bool = false;
-
         let mut damiera: Vec<Vec<&str>> = vec![vec![" ", "n", " ", "n", " ", "n", " ", "n"],
                                                vec!["n", " ", "n", " ", "n", " ", "n", " "],
                                                vec![" ", "n", " ", "n", " ", "n", " ", "n"],
@@ -29,55 +27,56 @@ impl game::Bot for Bot {
                                                vec!["b", " ", "b", " ", "b", " ", "b", " "]
                                               ];
 
+        let mut fine_partita: bool = false;
         let mut mossa_scelta: String;
+        let mut mossa_avversario: Vec<String> = Vec::new();
 
         while !fine_partita {
-        
+            
             match lnin!(input).as_str() {
-                "Bianchi" => {
-                    // Converto la damiera
-                    damiera = logic::converti_damiera(damiera.clone(), lnin!(input).to_string()).await;
-
+                "Turno bianco!" => {
                     // Faccio muovere le pedine binche al bot
                     (mossa_scelta, damiera) = bot_bianco(damiera.clone()).await;
-                    
-                    // Inio la mossa scelta e la damiera aggiornata
-                    lnout!(output, mossa_scelta.clone() + "|" + &damiera.clone().into_iter()
-                                                  .map(|c| c.into_iter().map(|p| match p { 
-                                                                            " " => "_",
-                                                                            _ => p
-                                                                        })
-                                                                        .collect::<Vec<&str>>()
-                                                                        .join(""))
-                                                  .collect::<Vec<String>>()
-                                                  .join(""));
+                
+                    // Invio la mossa scelta
+                    lnout!(output, mossa_scelta);
                 },
-                "Neri" => {
-                    // Converto la damiera
-                    damiera = logic::converti_damiera(damiera.clone(), lnin!(input).to_string()).await;
-
-                    // Faccio muovere le pedine binche al bot
+                "Turno nero!" => {
+                    // Faccio muovere le pedine nere al bot
                     (mossa_scelta, damiera) = bot_nero(damiera.clone()).await;
-                    
-                    // Inio la mossa scelta e la damiera aggiornata
-                    lnout!(output, mossa_scelta.clone() + "|" + &damiera.clone().into_iter()
-                                                  .map(|c| c.into_iter().map(|p| match p { 
-                                                                            " " => "_",
-                                                                            _ => p
-                                                                        })
-                                                                        .collect::<Vec<&str>>()
-                                                                        .join(""))
-                                                  .collect::<Vec<String>>()
-                                                  .join(""));
+
+                    // Invio la mossa scelta
+                    lnout!(output, mossa_scelta);
                 },
-                "Stop" => fine_partita = true,
-                _ => continue, // Attendo il mio turno
-            };
+                "Game Over ;)" => fine_partita = true, // Fermo il gioco perché la partita è terminata
+                s => {
+
+                    // Prelevo la mossa del giocatore oppposto
+                    if (s.contains("1") || s.contains("2") || s.contains("3") || s.contains("4") || s.contains("5") || s.contains("6") || s.contains("7") || s.contains("8")) && 
+                       (s.contains("A") || s.contains("B") || s.contains("C") || s.contains("D") || s.contains("E") || s.contains("F") || s.contains("G") || s.contains("H") ||
+                        s.contains("a") || s.contains("b") || s.contains("c") || s.contains("d") || s.contains("e") || s.contains("f") || s.contains("g") || s.contains("H")) &&
+                       (!s.contains(".") && !s.contains("[")) {
+                        
+                        // Converto la stringa in un vettore
+                        mossa_avversario = s.split(" ").map(|x| x.into()).collect();
+                        
+                        // Converto le mosse da alfanumeriche a numeriche
+                        for i in 0..mossa_avversario.len() {
+                            mossa_avversario[i] = logic::conv_mossa(&mossa_avversario[i]).await;
+                        }
+
+                        // Aggiorno la damiera
+                        damiera = logic::aggionra_damiera(mossa_avversario, damiera.clone()).await;
+                    }
+                    
+                    continue
+                },
+            }
         }
     }
 }
 
-pub(crate) async fn bot_bianco<'a>(mut damiera: Vec<Vec<&'a str>>) -> (String, Vec<Vec<&'a str>>){
+pub(crate) async fn bot_bianco<'a>(mut damiera: Vec<Vec<&'a str>>) -> (String, Vec<Vec<&str>>) {
     let mut dame = Vec::new();
     let mut pedine = Vec::new();
     let mut mossa_scelta:String = String::new();
@@ -315,11 +314,11 @@ pub(crate) async fn bot_bianco<'a>(mut damiera: Vec<Vec<&'a str>>) -> (String, V
         }
     }
 
-    // Ritorno la damiera sia che ho eseguito una mossa che non
+    // Ritorno la mossa scelta dal bot
     (mossa_scelta, damiera)
 }
 
-pub(crate) async fn bot_nero<'a>(mut damiera: Vec<Vec<&'a str>>) -> (String, Vec<Vec<&'a str>>){
+pub(crate) async fn bot_nero<'a>(mut damiera: Vec<Vec<&'a str>>) -> (String, Vec<Vec<&str>>) {
     let mut dame = Vec::new();
     let mut pedine = Vec::new();
     let mut mossa_scelta:String = String::new();
@@ -557,6 +556,6 @@ pub(crate) async fn bot_nero<'a>(mut damiera: Vec<Vec<&'a str>>) -> (String, Vec
         }
     }
 
-    // Ritorno la damiera sia che ho eseguito una mossa che non
+    // Ritorno la mossa scelta dal bot
     (mossa_scelta, damiera)
 }
