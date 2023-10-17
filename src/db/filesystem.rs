@@ -27,7 +27,7 @@ impl Database for FileSystem {
     fn close(&mut self) {}
 
     async fn execute(&mut self, cmd: Command) {
-        info!("Database handling cmd: {:?}", cmd);
+        trace!("Database handling cmd: {:?}", cmd);
         match cmd {
             // Return list of all saved games
             Command::List(response) => {
