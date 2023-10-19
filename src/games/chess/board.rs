@@ -1,6 +1,8 @@
 // Import necessary modules
 use super::chess_move::{Move, MoveType, Point};
 use super::color::Color;
+use tracing::error;
+use tracing::trace;
 
 // Define the possible chess pieces
 #[derive(Copy, Clone, PartialEq)]
@@ -118,21 +120,35 @@ impl ChessBoard {
 
     // Display the current state of the chess board
     pub fn display(&self) {
-        println!(" | A| B| C| D| E| F| G| H|");
-        println!("---------------------------");
+        let mut strToPrintB = " | A| B| C| D| E| F| G| H|\n";
+        //trace!(" | A| B| C| D| E| F| G| H|\n");
+        trace!(strToPrintB);
+        strToPrintB = "---------------------------\n";
+        //trace!("---------------------------\n");
+        trace!(strToPrintB);
         for (row, num) in self.board.iter().zip(0u8..8).rev() {
-            print!("{}|", num + 1);
+            let mut strToPrintA = "".to_string();
+            let newNum = num + 1;
+            strToPrintA = strToPrintA + &newNum.to_string() + "|";
+            //trace!("{}|", num + 1);
             for tile in row.iter() {
-                print!("{}|", tile.display());
+                strToPrintA = strToPrintA + tile.display() + "|";
+                //trace!("{}|", tile.display());
             }
-            println!("{}", num + 1);
-            println!("---------------------------");
+            strToPrintA = strToPrintA + &newNum.to_string() + "\n";
+            //trace!("{}\n", num + 1);
+            trace!(strToPrintA);
+            strToPrintA = "---------------------------\n".to_string();
+            //trace!("---------------------------\n");
+            trace!(strToPrintA);
         }
-        println!(" | A| B| C| D| E| F| G| H|");
-        println!("");
-        println!("***************************");
-        println!("***************************");
-        println!("");
+        strToPrintB = " | A| B| C| D| E| F| G| H|\n";
+        //trace!(" | A| B| C| D| E| F| G| H|\n");
+        trace!(strToPrintB);
+        trace!("\n");
+        trace!("***************************\n");
+        trace!("***************************\n");
+        trace!("\n");
     }
 
     // Check if a move is valid for a given color

@@ -2,6 +2,7 @@ use crate::game;
 use async_trait::async_trait;
 use tokio::io::{split, AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream};
 use tracing::error;
+use tracing::warn;
 
 use std::thread;
 use std::time::Duration;
@@ -42,7 +43,6 @@ impl game::Bot for Bot {
 
             let mut opt = MoveType::parse(&trimmed);
 
-            // Inside the game loop, when it is the bot's turn (indicated by turn == me), it receives a roll value from the server. It then generates a move based on the board.valid_moves(me, roll) method. The bot selects a random valid move using choose() from the valid_moves slice, and then it sends its move to the server using lnout!(output, format!("{}", x)).
             if turn == me {
                 let mut user_input = String::new();
 
@@ -51,7 +51,7 @@ impl game::Bot for Bot {
                     opt = MoveType::parse(&trimmed);
                 }
                 board = board.apply_move_type(opt.expect("Invalid MoveType received"));
-                // lnout!(output, format!("{}", trimmed));
+                lnout2!(output, format!("{}", trimmed));
             } else {
                 // When it is the opponent's turn (turn != me), the bot reads the opponent's move from the server. If the opponent sends "RETIRE," the game breaks out of the loop, otherwise, it parses the move and updates the board accordingly.
                 trimmed = lnin!(input)
@@ -64,7 +64,10 @@ impl game::Bot for Bot {
                     board = board.apply_move_type(opt.expect("Invalid MoveType received"));
                     turn = 1 - turn;
                 } else {
-                    // lnout!(output, format!("INVALID_MOVE <Server sent invalid move {}>", trimmed));
+                    lnout2!(
+                        output,
+                        format!("INVALID_MOVE <Server sent invalid move {}>", trimmed)
+                    );
                 }
             }
             // After each move, the turn variable is flipped (turn = 1 - turn) to switch between the bot's turn and the opponent's turn.

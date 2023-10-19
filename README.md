@@ -16,6 +16,7 @@ Currently implemented games are:
 
 - `roshambo` (Rock Paper Scissors)
 - `royalur` (Royal Game of Ur)
+- `chess` (Text based Chess)
 
 ### License
 

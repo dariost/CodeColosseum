@@ -83,7 +83,7 @@ impl game::Instance for Instance {
                 errorCount = errorCount + 1;
             };
 
-            if errorCount == 1000 {
+            if errorCount == 10000 {
                 retired = 1;
                 retired!(p[1 - turn].output, spectators)
             }
@@ -146,7 +146,10 @@ impl game::Instance for Instance {
                         lnout2!(spectators, "DRAW <PROPOSED>");
                         turn = 1 - turn;
                     } else {
-                        lnout2!(p[turn].output, "INVALID_MOVE <Impossible to recognize move>");
+                        lnout2!(
+                            p[turn].output,
+                            "INVALID_MOVE <Impossible to recognize move>"
+                        );
                     }
                 };
                 continue;
