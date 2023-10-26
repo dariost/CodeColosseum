@@ -1,5 +1,6 @@
 use super::super::util::Player;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, DuplexStream, WriteHalf};
+use tokio::time::{timeout, Duration};
 
 pub(crate) async fn partita_in_corso(damiera: Vec<Vec<&str>>, giocatore: &mut Vec<Player>, spectators: &mut WriteHalf<DuplexStream>, turno_binaco: bool) -> bool {
     let mut fine_partita: bool = false;
@@ -320,7 +321,7 @@ pub(crate) async fn stampa_damiera(damiera: Vec<Vec<&str>>, giocatore: &mut Vec<
     }
 }
 
-pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore: &mut Player) -> Vec<String> {
+pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore: &mut Player, timer: Duration) -> Vec<String> {
     let mut err_mossa: bool = true;
     let mut mosse: Vec<String> = Vec::new();
     let mut stampa = String::new();
@@ -328,7 +329,7 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
     while err_mossa {
         
         // Chiedo all'utente che mosse vole fare
-        mosse = percorso(giocatore).await;
+        mosse = percorso(giocatore, timer).await;
 
         // Verifico che il giocatore non abbia abbandonato
         if mosse[0] == "Err" {
@@ -576,7 +577,7 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
     mosse
 }
 
-pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &mut Player) -> Vec<String> {
+pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &mut Player, timer: Duration) -> Vec<String> {
     let mut err_mossa: bool = true;
     let mut mosse: Vec<String> = Vec::new();
     let mut stampa: String = String::new();
@@ -584,7 +585,7 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
     while err_mossa {
         
         // Chiedo all'utente che mosse vole fare
-        mosse = percorso(giocatore).await;
+        mosse = percorso(giocatore, timer).await;
 
         // Verifico che il giocatore non abbia abbandonato
         if mosse[0] == "Err" {
@@ -919,7 +920,7 @@ pub(crate) async fn dama(mut pedina: &str, mossa_r: usize) -> &str {
     }
 }
 
-async fn percorso(giocatore: &mut Player) -> Vec<String> {
+async fn percorso(giocatore: &mut Player, timer: Duration) -> Vec<String> {
     
     // Inizializzo le variabili
     let mut percorso: String = String::new();
@@ -936,8 +937,21 @@ async fn percorso(giocatore: &mut Player) -> Vec<String> {
         mosse.clear();
         
         // Controllo che il giocatore non abbia abbandonato la partita
-        match giocatore.input.read_line(&mut percorso).await {
-            Ok(t) => {
+        match timeout(timer, giocatore.input.read_line(&mut percorso)).await {
+            Err(_) | Ok(Err(_)) => {
+                _ = giocatore.output.write(("\nTempo scaduto, hai esaurito il tempo per fare una mossa!\n").as_bytes()).await;
+                mosse.insert(0, "Err".to_string());
+                return mosse
+            },
+            Ok(Ok(x)) => {
+
+                // Se viene ritornato 0 vuol dire che il giocatore ha abbandonato
+                if x == 0 {
+                    mosse.insert(0, "Err".to_string());
+                    return mosse
+                }
+            },
+            /*Ok(t) => {
 
                 // Se viene ritornato 0 vuol dire che il giocatore ha abbandonato
                 if t == 0 {
@@ -945,8 +959,8 @@ async fn percorso(giocatore: &mut Player) -> Vec<String> {
                     return mosse
                 }
             },
-            Err(error) => println!("Error: {error}"),
-        }
+            Err(error) => println!("Error: {error}"),*/
+        };
 
         // Elimino tutti gli elementi non necessari dalla stringa
         percorso = percorso.replace(&['\n', '\r', '\t'][..], "");
@@ -963,7 +977,7 @@ async fn percorso(giocatore: &mut Player) -> Vec<String> {
                 break;
             }
             
-            let pos = conv_mossa(&m).await;
+            let pos = conv_mossa_in_num(&m).await;
 
             // Verifico che i valori inseriti siano all'interno della damiera
             if pos.len() != 2{
@@ -989,7 +1003,7 @@ async fn percorso(giocatore: &mut Player) -> Vec<String> {
     mosse
 }
 
-pub(crate) async fn conv_mossa (posizione: &str) -> String {
+pub(crate) async fn conv_mossa_in_num (posizione: &str) -> String {
 
     // Convertitore di riga
     let row: &str = match posizione.chars().nth(0){
@@ -1014,6 +1028,38 @@ pub(crate) async fn conv_mossa (posizione: &str) -> String {
         Some('f')|Some('F')=>"5",
         Some('g')|Some('G')=>"6",
         Some('h')|Some('H')=>"7",
+        _=>"Null",
+    };
+
+    // Unisco le due stringhe convertite e le restituisco
+    row.to_owned() + col
+}
+
+pub(crate) async fn conv_mossa_in_alfanum (posizione: &str) -> String {
+
+    // Convertitore di riga
+    let row: &str = match posizione.chars().nth(0){
+        Some('0')=>"1",
+        Some('1')=>"2",
+        Some('2')=>"3",
+        Some('3')=>"4",
+        Some('4')=>"5",
+        Some('5')=>"6",
+        Some('6')=>"7",
+        Some('7')=>"8",
+        _=>"Null",
+    };
+
+    // Convertitore di colonna
+    let col: &str = match posizione.chars().nth(1){
+        Some('0')=>"A",
+        Some('1')=>"B",
+        Some('2')=>"C",
+        Some('3')=>"D",
+        Some('4')=>"E",
+        Some('5')=>"F",
+        Some('6')=>"G",
+        Some('7')=>"H",
         _=>"Null",
     };
 

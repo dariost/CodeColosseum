@@ -50,7 +50,7 @@ impl game::Bot for Bot {
                 },
                 "Game Over ;)" => fine_partita = true, // Fermo il gioco perché la partita è terminata
                 s => {
-
+                    
                     // Prelevo la mossa del giocatore oppposto
                     if (s.contains("1") || s.contains("2") || s.contains("3") || s.contains("4") || s.contains("5") || s.contains("6") || s.contains("7") || s.contains("8")) && 
                        (s.contains("A") || s.contains("B") || s.contains("C") || s.contains("D") || s.contains("E") || s.contains("F") || s.contains("G") || s.contains("H") ||
@@ -62,7 +62,7 @@ impl game::Bot for Bot {
                         
                         // Converto le mosse da alfanumeriche a numeriche
                         for i in 0..mossa_avversario.len() {
-                            mossa_avversario[i] = logic::conv_mossa(&mossa_avversario[i]).await;
+                            mossa_avversario[i] = logic::conv_mossa_in_num(&mossa_avversario[i]).await;
                         }
 
                         // Aggiorno la damiera

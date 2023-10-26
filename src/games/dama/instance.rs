@@ -6,7 +6,7 @@ use tracing::warn;
 use rand::rngs::StdRng;
 use std::collections::HashMap;
 use tokio::io::{AsyncWriteExt, DuplexStream, WriteHalf};
-use tokio::time::Duration;
+use tokio::time::{sleep_until, Duration, Instant};
 
 #[derive(Debug)]
 pub(crate) struct Instance {
@@ -51,6 +51,9 @@ impl game::Instance for Instance {
         // Creo il vettore che conterrà il percorso valido
         let mut percorso_valido: Vec<String> = Vec::new();
 
+        // Creao la stringa che conterrà la mossa da inviare all'avversario
+        let mut mossa: String = String::new();
+
         // Inizia sempre la partita il secondo giocatore che si conette
         _ = giocatore[0].output.write(("Sei i Bianchi\n").as_bytes()).await;
         _ = giocatore[1].output.write(("Sei i Neri\n").as_bytes()).await;
@@ -59,6 +62,8 @@ impl game::Instance for Instance {
         // Avvio il gioco
         while !logic::partita_in_corso(damiera.clone(), &mut giocatore, &mut spectators, turno_binaco).await {
             
+            let start = Instant::now();
+
             if turno_binaco { // Bianchi
                 
                 // Dico al giocatore cosa deve muovere
@@ -67,19 +72,22 @@ impl game::Instance for Instance {
                 _ = spectators.write(("Turno bianco!\n").as_bytes()).await;
                 
                 // Verifico la validità del percorso dato dall'utente
-                percorso_valido = logic::verifica_percorso_bianco(damiera.clone(), &mut giocatore[0]).await;
+                percorso_valido = logic::verifica_percorso_bianco(damiera.clone(), &mut giocatore[0], self.timeout).await;
                 
                 // Controllo se c'è stato un abbandono della partita
                 if percorso_valido[0] == "Err"{
-                    _ = giocatore[1].output.write(("I binachi hanno abbandonato la partita.\nI neri vincono la partita!\n\n").as_bytes()).await;
+                    _ = giocatore[1].output.write(("\nI binachi hanno abbandonato la partita.\nI neri vincono la partita!\n\n").as_bytes()).await;
                     break;
                 }
 
-                // Invio la mossa fatta all'avversario
-                lnout2!(giocatore[1].output, percorso_valido.clone().into_iter().map(|c| c.to_string()).collect::<Vec<String>>().join(" "));
+                // Converto le mosse da numeriche a alfanumeriche
+                for i in 0..percorso_valido.len() {
 
-                // Aggiorno la damiera
-                damiera = logic::aggionra_damiera(percorso_valido.clone(), damiera.clone()).await;
+                    mossa += &(logic::conv_mossa_in_alfanum(&percorso_valido[i]).await + " ")
+                }
+
+                // Invio la mossa fatta all'avversario
+                lnout2!(giocatore[1].output, mossa.clone());
                 
                 // Cambio il turno di gioco
                 turno_binaco = false;
@@ -92,26 +100,38 @@ impl game::Instance for Instance {
                 _ = spectators.write(("Turno nero!\n").as_bytes()).await;
                 
                 // Verifico la validità del percorso dato dall'utente
-                percorso_valido = logic::verifica_percorso_nero(damiera.clone(), &mut giocatore[1]).await;
+                percorso_valido = logic::verifica_percorso_nero(damiera.clone(), &mut giocatore[1], self.timeout).await;
                 
                 // Controllo se c'è stato un abbandono della partita
                 if percorso_valido[0] == "Err"{
-                    _ = giocatore[0].output.write(("I neri hanno abbandonato la partita.\nI bianchi vincono la partita!\n\n").as_bytes()).await;
+                    _ = giocatore[0].output.write(("\nI neri hanno abbandonato la partita.\nI bianchi vincono la partita!\n\n").as_bytes()).await;
                     break;
                 }
 
-                // Invio la mossa fatta all'avversario
-                lnout2!(giocatore[0].output, percorso_valido.clone().into_iter().map(|c| c.to_string()).collect::<Vec<String>>().join(" "));
+                // Converto le mosse da numeriche a alfanumeriche
+                for i in 0..percorso_valido.len() {
 
-                // Aggiorno la damiera
-                damiera = logic::aggionra_damiera(percorso_valido.clone(), damiera.clone()).await;
+                    mossa += &(logic::conv_mossa_in_alfanum(&percorso_valido[i]).await + " ");
+                }
+
+                // Invio la mossa fatta all'avversario
+                lnout2!(giocatore[0].output, mossa.clone());
                 
                 // Cambio il turno di gioco
                 turno_binaco = true;
             }
             
+            // Pulisco la variabile usata per passare la mossa all'avversario
+            mossa.clear();
+
+            // Aggiorno la damiera
+            damiera = logic::aggionra_damiera(percorso_valido.clone(), damiera.clone()).await;
+
             // Stampo la damiera aggiornata
             logic::stampa_damiera(damiera.clone(), &mut giocatore, &mut spectators).await;
+
+            // Faccio una pausa
+            sleep_until(start + self.pace).await;
         }
 
         // Fine del gioco
