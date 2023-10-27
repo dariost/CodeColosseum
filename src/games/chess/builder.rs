@@ -30,7 +30,7 @@ impl Builder {
 // Implementazione del trait game::Builder per il Builder
 #[async_trait]
 impl game::Builder for Builder {
-    // Metodo che restituisce il nome del gioco "royalur"
+    // Metodo che restituisce il nome del gioco "chess"
     fn name(&self) -> &str {
         "chess"
     }

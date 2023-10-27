@@ -1,4 +1,7 @@
 use crate::game;
+extern crate regex;
+
+use regex::Regex;
 use async_trait::async_trait;
 use tokio::io::{split, AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream};
 use tracing::error;
@@ -30,49 +33,67 @@ impl game::Bot for Bot {
         lnin!(input); // Read opponent name
         let me: usize = lnin!(input).parse().expect("Cannot parse player number");
         let mut turn = 0;
+    	//println!(">>> BOT: Io sono il giocatore {}", me);
+    	
+        let mut current_color = Color::White;
 
         // The bot enters a game loop that continues until the game is finished (determined by the finished() method of the Board).
         while !board.check_king_mate(current_color) {
+        	//println!(">>> BOT: Turno {}", turn);
             if turn == 0 {
-                let mut current_color = Color::White;
+                current_color = Color::White;
             } else {
-                let mut current_color = Color::Black;
+                current_color = Color::Black;
             }
+	        	
+        	/*match current_color{
+        		Color::Black => println!(">>> BOT: Nero"),
+        		Color::White => println!(">>> BOT: Bianco"),
+        	}*/
 
             let mut trimmed = String::with_capacity(10);
 
             let mut opt = MoveType::parse(&trimmed);
 
             if turn == me {
-                let mut user_input = String::new();
+	        	//println!(">>> BOT: Calcolo la mossa");
 
                 while !board.check_move(opt, current_color) {
                     trimmed = MoveType::randomMove();
                     opt = MoveType::parse(&trimmed);
+		        	//println!(">>> BOT: Mossa casuale {}", trimmed);
                 }
                 board = board.apply_move_type(opt.expect("Invalid MoveType received"));
-                lnout2!(output, format!("{}", trimmed));
+                lnout!(output, format!("{}", trimmed));
+                //println!(">>> BOT: Mossa inviata {}", trimmed);
             } else {
                 // When it is the opponent's turn (turn != me), the bot reads the opponent's move from the server. If the opponent sends "RETIRE," the game breaks out of the loop, otherwise, it parses the move and updates the board accordingly.
-                trimmed = lnin!(input)
-                    .trim()
-                    .split(" ")
-                    .map(|x| x.to_string())
-                    .collect();
+                let mut token = lnin!(input);
+                    
+                let re = Regex::new(r"<(.*?)>").expect("Failed to compile regex pattern");
+				let captures: Vec<&str> = re.captures_iter(&token)
+					.filter_map(|cap| cap.get(1).map(|m| m.as_str()))
+					.collect();
+				trimmed = captures.join(" ");
+                opt = MoveType::parse(&trimmed);
+                
+                //println!(">>> BOT: Mossa ricevuta {}", trimmed);
+                    
+                if (trimmed.len() <= 0) | (trimmed == "RETIRE"){
+                	break;
+                }
 
                 if board.check_move(opt, current_color) {
+                	//println!(">>> BOT: Mossa valida, cambio turno");
                     board = board.apply_move_type(opt.expect("Invalid MoveType received"));
-                    turn = 1 - turn;
                 } else {
-                    lnout2!(
-                        output,
-                        format!("INVALID_MOVE <Server sent invalid move {}>", trimmed)
-                    );
+                	//println!(">>> BOT: Mossa non valida, leggo nuova mossa");
+                    lnout!(output, format!("INVALID_MOVE <Server sent invalid move {}>", trimmed));
+                    turn = 1 - turn;
                 }
             }
             // After each move, the turn variable is flipped (turn = 1 - turn) to switch between the bot's turn and the opponent's turn.
             turn = 1 - turn;
         }
-        thread::sleep(Duration::from_secs(3));
     }
 }

@@ -8,10 +8,15 @@ use std::collections::HashMap;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, DuplexStream, WriteHalf};
 use tokio::time::{sleep_until, timeout, Duration, Instant};
 use tracing::warn;
+use tracing::error;
 
 use super::board::ChessBoard;
 use super::chess_move::MoveType;
 use super::color::Color;
+
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::Receiver;
 
 // Define a struct named 'Instance' to hold game-related parameters
 #[derive(Debug)]
@@ -24,8 +29,8 @@ pub(crate) struct Instance {
 // Define a macro 'retired!' which sends a retirement message to players and spectators
 macro_rules! retired {
     ($other:expr, $spectators:expr) => {{
-        lnout2!($other, "RETIRE");
-        lnout2!($spectators, "RETIRE");
+        lnout!($other, "RETIRE");
+        lnout!($spectators, "RETIRE");
         break;
     }};
 }
@@ -58,13 +63,13 @@ impl game::Instance for Instance {
 
         // Send player names to all participants
         for i in 0..2 {
-            lnout2!(p[0].output, &p[i].name);
-            lnout2!(p[1].output, &p[i].name);
-            lnout2!(spectators, &p[i].name);
+            lnout!(p[0].output, &p[i].name);
+            lnout!(p[1].output, &p[i].name);
+            lnout!(spectators, &p[i].name);
         }
         // Send player index to players
-        lnout2!(p[0].output, "0");
-        lnout2!(p[1].output, "1");
+        lnout!(p[0].output, "0");
+        lnout!(p[1].output, "1");
 
         let mut turn = 0;
         let mut turn_prec = 1;
@@ -72,9 +77,11 @@ impl game::Instance for Instance {
         let mut retired = 0;
         let mut draw = 0;
         let mut errorCount = 0;
+        let mut hide_output = 0;
 
         // Main game loop
         while !board.check_king_mate(current_color) && retired == 0 && draw != 2 {
+        	//println!(">>> PLAYER: Turno {}, turno precedente {}", turn, turn_prec);
             if turn != turn_prec {
                 board.display();
                 turn_prec = turn;
@@ -90,32 +97,50 @@ impl game::Instance for Instance {
 
             let start = Instant::now();
 
-            // Read the player's move
+			//------------------------------------------------------------------------------------
+            // Read move
             let mut buffer = String::new();
-            let mut trimmed = String::new();
-
-            // Use timeout to handle potential move input delays
+            let mut token = "";
+        	//println!(">>> PLAYER: Attendo la mossa del giocatore {}", turn);
             match timeout(self.timeout, p[turn].input.read_line(&mut buffer)).await {
-                Ok(n) => {
-                    trimmed = buffer.trim().to_string();
-                }
-                Err(err) => {
-                    trimmed = buffer.trim().to_string();
-                }
+                // Timed out or closed connection
+                Err(_) | Ok(Err(_)) => retired!(p[1 - turn].output, spectators),
+                // Parse response
+                Ok(Ok(_)) => if buffer.trim().len() > 0{
+						        // Valid token value
+						        token = buffer.trim();
+					       	} else {
+						        // Other garbage
+						        retired = 1;
+						        hide_output = 1;
+						        retired!(p[1 - turn].output, spectators);
+						        continue;
+						    }
+            };
+            let mut trimmed = String::new();
+            trimmed = token.to_string();
+            
+            //println!(">>> PLAYER: Mossa ricevuta {}", trimmed);
+            
+            if trimmed.len() <= 0 {
+			    retired = 1;
+			    hide_output = 1;
+			    retired!(p[1 - turn].output, spectators);
+			    continue;
             };
 
             // Handle the draw condition
             if draw == 1 {
                 if trimmed == "DRAW" {
-                    lnout2!(p[turn].output, "DRAW <ACCEPTED>");
-                    lnout2!(p[1 - turn].output, "DRAW <ACCEPTED>");
-                    lnout2!(spectators, "DRAW <ACCEPTED>");
+                    //lnout!(p[turn].output, "DRAW <ACCEPTED>");
+                    lnout!(p[1 - turn].output, "DRAW <ACCEPTED>");
+                    lnout!(spectators, "DRAW <ACCEPTED>");
                     draw = draw + 1;
                 } else {
                     draw = 0;
-                    lnout2!(p[turn].output, "DRAW <REFUSED>");
-                    lnout2!(p[1 - turn].output, "DRAW <REFUSED>");
-                    lnout2!(spectators, "DRAW <REFUSED>");
+                    //lnout!(p[turn].output, "DRAW <REFUSED>");
+                    lnout!(p[1 - turn].output, "DRAW <REFUSED>");
+                    lnout!(spectators, "DRAW <REFUSED>");
                     turn = 1 - turn;
                     current_color = refreshColor(turn);
                 };
@@ -141,29 +166,32 @@ impl game::Instance for Instance {
                 } else {
                     if trimmed == "DRAW" {
                         draw = 1;
-                        lnout2!(p[turn].output, "DRAW <PROPOSED>");
-                        lnout2!(p[1 - turn].output, "DRAW <PROPOSED>");
-                        lnout2!(spectators, "DRAW <PROPOSED>");
+                        lnout!(p[turn].output, "DRAW <PROPOSED>");
+                        lnout!(p[1 - turn].output, "DRAW <PROPOSED>");
+                        lnout!(spectators, "DRAW <PROPOSED>");
                         turn = 1 - turn;
                     } else {
-                        lnout2!(
+			            //println!(">>> PLAYER: Mossa ricevuta non valida");
+                        /*lnout!(
                             p[turn].output,
                             "INVALID_MOVE <Impossible to recognize move>"
-                        );
+                        );*/
                     }
                 };
                 continue;
             } else {
-                lnout2!(p[turn].output, "OK ".to_owned() + &formatted_str);
-                lnout2!(p[1 - turn].output, "OK ".to_owned() + &formatted_str);
-                lnout2!(spectators, "OK ".to_owned() + &formatted_str);
+	            //println!(">>> PLAYER: Mossa valida");
+            	let mut out_str = "OK ".to_owned() + &formatted_str;
+                lnout!(p[turn].output, "OK ".to_owned() + &formatted_str);
+                lnout!(p[1 - turn].output, "OK ".to_owned() + &formatted_str);
+                lnout!(spectators, "OK ".to_owned() + &formatted_str);
 
                 match opt {
                     Some(move_type) => {
                         board = board.apply_move_type(move_type);
                     }
                     None => {
-                        lnout2!(p[turn].output, "INVALID_MOVE <Impossible to apply move>");
+                        lnout!(p[turn].output, "INVALID_MOVE <Impossible to apply move>");
                         continue;
                     }
                 }
@@ -175,13 +203,13 @@ impl game::Instance for Instance {
         }
 
         // Game ending messages
-        if draw != 2 {
-            lnout2!(p[1 - turn].output, "CHECKMATE! You win!");
-            lnout2!(p[turn].output, "CHECKMATE! You loose!");
+        if draw != 2 && hide_output == 0 {
+            lnout!(p[1 - turn].output, "CHECKMATE! You win!");
+            lnout!(p[turn].output, "CHECKMATE! You loose!");
             if turn == 0 {
-                lnout2!(spectators, "CHECKMATE! Black wins!");
+                lnout!(spectators, "CHECKMATE! Black wins!");
             } else {
-                lnout2!(spectators, "CHECKMATE! White wins!");
+                lnout!(spectators, "CHECKMATE! White wins!");
             };
         }
     }
