@@ -60,7 +60,7 @@ enum Command {
     New(NewCommand),
     /// Play or spectate a game
     Connect(ConnectCommand),
-    /// List all saved matches 
+    /// List all saved matches
     /// or retrive the history of a specific match
     History(HistoryCommand),
 }
@@ -107,14 +107,14 @@ where
             match msg {
                 Ok(Message::Binary(x)) => match bincode::deserialize(&x[..]) {
                     Ok(x) => break Ok(x),
-                    Err(e) => break Err(format!("Could not deserialize server reply: {}", e))
+                    Err(e) => break Err(format!("Could not deserialize server reply: {}", e)),
                 },
                 Ok(Message::Text(x)) => match Reply::parse(&x) {
                     Ok(x) => break Ok(x),
                     Err(x) => break Err(format!("Could not parse server reply: {}", x)),
                 },
                 Err(x) => break Err(format!("Connection lost while waiting for reply: {}", x)),
-                _ => { }
+                _ => {}
             }
         } else {
             break Err(format!("Connection lost while waiting for reply"));
@@ -124,15 +124,22 @@ where
 
 #[derive(ArgEnum, Clone, Debug)]
 enum HistoryCommandDisplayEnum {
-    Raw, Pretty, Json
+    Raw,
+    Pretty,
+    Json,
 }
 
 #[derive(Parser, Debug)]
 struct HistoryCommand {
     #[clap(help = "Show the match data of the game with this id")]
-    id: Option<String>, 
-    #[clap(arg_enum, default_value = "pretty", short, long,
-           help = "How to display the match data")]
+    id: Option<String>,
+    #[clap(
+        arg_enum,
+        default_value = "pretty",
+        short,
+        long,
+        help = "How to display the match data"
+    )]
     display: HistoryCommandDisplayEnum,
 }
 
@@ -153,23 +160,28 @@ impl HistoryCommand {
             Reply::HistoryMatch(match_data_result) => {
                 match match_data_result {
                     Err(e) => return Err(format!("History error: {:?}", e)),
-                    Ok(match_data) => {
-                        match self.display {
-                            HistoryCommandDisplayEnum::Pretty => println!("{}", match_data),
-                            HistoryCommandDisplayEnum::Raw => {
-                                match std::str::from_utf8(&match_data.history) {
-                                    Err(e) => return Err(format!("Unable to decode history as utf8: {}", e)),
-                                    Ok(history) => println!("{}", history)
+                    Ok(match_data) => match self.display {
+                        HistoryCommandDisplayEnum::Pretty => println!("{}", match_data),
+                        HistoryCommandDisplayEnum::Raw => {
+                            match std::str::from_utf8(&match_data.history) {
+                                Err(e) => {
+                                    return Err(format!("Unable to decode history as utf8: {}", e))
                                 }
-                            },
-                            HistoryCommandDisplayEnum::Json => {
-                                match serde_json::to_string_pretty(&match_data) {
-                                    Err(e) => return Err(format!("Unable to parse history data to json: {}", e)),
-                                    Ok(json_string) => println!("{}", json_string)
-                                };
+                                Ok(history) => println!("{}", history),
                             }
                         }
-                    }
+                        HistoryCommandDisplayEnum::Json => {
+                            match serde_json::to_string_pretty(&match_data) {
+                                Err(e) => {
+                                    return Err(format!(
+                                        "Unable to parse history data to json: {}",
+                                        e
+                                    ))
+                                }
+                                Ok(json_string) => println!("{}", json_string),
+                            };
+                        }
+                    },
                 }
 
                 Ok(())
