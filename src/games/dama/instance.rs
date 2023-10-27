@@ -45,7 +45,7 @@ impl game::Instance for Instance {
         // Stampo la damiera
         logic::stampa_damiera(damiera.clone(), &mut giocatore, &mut spectators).await;
 
-        // Setto chi inizzia a giocare
+        // Setto chi inizia a giocare
         let mut turno_binaco: bool = true;
 
         // Creo il vettore che conterrà il percorso valido
@@ -54,7 +54,7 @@ impl game::Instance for Instance {
         // Creao la stringa che conterrà la mossa da inviare all'avversario
         let mut mossa: String = String::new();
 
-        // Inizia sempre la partita il secondo giocatore che si conette
+        // Inizia sempre la partita il secondo giocatore che si connette
         _ = giocatore[0].output.write(("Sei i Bianchi\n").as_bytes()).await;
         _ = giocatore[1].output.write(("Sei i Neri\n").as_bytes()).await;
         _ = spectators.write(("Il giocatore ".to_owned() + &giocatore[0].name + " è i bianchi e il giocatore " + &giocatore[1].name + " è i neri.\n").as_bytes()).await;

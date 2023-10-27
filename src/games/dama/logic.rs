@@ -63,7 +63,7 @@ async fn mosse_possibili(damiera: Vec<Vec<&str>>, turno_binaco: bool) -> bool {
 
     if turno_binaco == true {
         
-        // Prelevo le Dame e le pedine binche
+        // Prelevo le Dame e le pedine bianche
         for r in 0..damiera.len() {
             for c in 0..damiera[r].len() {
             
@@ -94,7 +94,7 @@ async fn mosse_possibili(damiera: Vec<Vec<&str>>, turno_binaco: bool) -> bool {
                     mossa = true;
                 }
 
-                // Controllo le cetture
+                // Controllo le catture
                 if ((row as i32) - 2 >= 0 && (col as i32) - 2 >= 0) && 
                         damiera[row-1][col-1] == "n" &&
                         damiera[row-2][col-2] == " " {
@@ -138,7 +138,7 @@ async fn mosse_possibili(damiera: Vec<Vec<&str>>, turno_binaco: bool) -> bool {
                     mossa = true;
                 }
 
-                // Controllo le cetture
+                // Controllo le catture
                 if ((row as i32) - 2 >= 0 && (col as i32) - 2 >= 0) && 
                    (damiera[row-1][col-1] == "n" || damiera[row-1][col-1] == "N") &&
                         damiera[row-2][col-2] == " " {
@@ -199,7 +199,7 @@ async fn mosse_possibili(damiera: Vec<Vec<&str>>, turno_binaco: bool) -> bool {
                     mossa = true;
                 }
 
-                // Controllo le cetture
+                // Controllo le catture
                 if ((row as i32) + 2 <= 7 && (col as i32) + 2 <= 7) && 
                         damiera[row+1][col+1] == "b" &&
                         damiera[row+2][col+2] == " " {
@@ -243,7 +243,7 @@ async fn mosse_possibili(damiera: Vec<Vec<&str>>, turno_binaco: bool) -> bool {
                     mossa = true;
                 }
 
-                // Controllo le cetture
+                // Controllo le catture
                 if ((row as i32) - 2 >= 0 && (col as i32) - 2 >= 0) && 
                    (damiera[row-1][col-1] == "b" || damiera[row-1][col-1] == "B") &&
                         damiera[row-2][col-2] == " " {
@@ -328,7 +328,7 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
 
     while err_mossa {
         
-        // Chiedo all'utente che mosse vole fare
+        // Chiedo all'utente che mosse vuole fare
         mosse = percorso(giocatore, timer).await;
 
         // Verifico che il giocatore non abbia abbandonato
@@ -371,7 +371,7 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
                     // Controllo se si fa una mossa o una cattura
                     if pedina_r - 1 == mossa_r && mosse.len() == 2 {
                         
-                        // Controllo se la mossa è in indiagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
+                        // Controllo se la mossa è in diagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
                         if ((pedina_c == 0 && pedina_c + 1 == mossa_c) || 
                             (pedina_c == 7 && pedina_c - 1 == mossa_c) || 
                             ((pedina_c != 0 && pedina_c != 7) && (pedina_c + 1 == mossa_c || pedina_c - 1 == mossa_c))
@@ -402,7 +402,7 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
                     }
                     else if pedina_r - 2 == mossa_r {
                         
-                        // Controllo se la mossa è in indiagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
+                        // Controllo se la mossa è in diagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
                         if (((pedina_c == 0 || pedina_c == 1) && pedina_c + 2 == mossa_c && damiera[pedina_r - 1][pedina_c + 1] == "n") ||
                             ((pedina_c == 7 || pedina_c == 6) && pedina_c - 2 == mossa_c && damiera[pedina_r - 1][pedina_c - 1] == "n") ||
                             ((pedina_c != 0 && pedina_c != 1 && pedina_c != 7 && pedina_c != 6) && (pedina_c + 2 == mossa_c || pedina_c - 2 == mossa_c) && ((mossa_c > pedina_c && damiera[pedina_r - 1][pedina_c + 1] == "n") || (mossa_c < pedina_c && damiera[pedina_r - 1][pedina_c - 1] == "n")))
@@ -455,7 +455,7 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
                 else {
                     // Dama
                     
-                    // Controllo se la mossa è in indiagonale, di non uscire dalla damiera e se si fa una mossa o una cattura
+                    // Controllo se la mossa è in diagonale, di non uscire dalla damiera e se si fa una mossa o una cattura
                     if ((pedina_r == 0 && pedina_r + 1 == mossa_r) || 
                         (pedina_r == 7 && pedina_r - 1 == mossa_r) || 
                         ((pedina_r != 0 && pedina_r != 7) && (pedina_r - 1 == mossa_r || pedina_r + 1 == mossa_r))
@@ -467,7 +467,7 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
                         // 2) mossa SU se si è sulla riga 7
                         // 3) mossa normale se si è al centro
 
-                        // Controllo se la mossa è in indiagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
+                        // Controllo se la mossa è in diagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
                         if ((pedina_c == 0 && pedina_c + 1 == mossa_c) || 
                             (pedina_c == 7 && pedina_c - 1 == mossa_c) || 
                             ((pedina_c != 0 && pedina_c != 7) && (pedina_c + 1 == mossa_c || pedina_c - 1 == mossa_c))
@@ -505,7 +505,7 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
                         // 2) cattura SU se si è sulla riga 7 o 6
                         // 3) cattura normale se si è al centro
 
-                        // Controllo se la mossa è in indiagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
+                        // Controllo se la mossa è in diagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
                         if (((pedina_c == 0 || pedina_c == 1) && pedina_c + 2 == mossa_c && ((mossa_r > pedina_r && damiera[pedina_r + 1][pedina_c + 1] == "n") || (mossa_r > pedina_r && damiera[pedina_r + 1][pedina_c + 1] == "N") || (mossa_r < pedina_r && damiera[pedina_r - 1][pedina_c + 1] == "n") || (mossa_r < pedina_r && damiera[pedina_r - 1][pedina_c + 1] == "N"))) || 
                             ((pedina_c == 7 || pedina_c == 6) && pedina_c - 2 == mossa_c && ((mossa_r > pedina_r && damiera[pedina_r + 1][pedina_c - 1] == "n") || (mossa_r > pedina_r && damiera[pedina_r + 1][pedina_c - 1] == "N") || (mossa_r < pedina_r && damiera[pedina_r - 1][pedina_c - 1] == "n") || (mossa_r < pedina_r && damiera[pedina_r - 1][pedina_c - 1] == "N"))) || 
                             ((pedina_c != 0 && pedina_c != 1 && pedina_c != 7 && pedina_c != 6) && (pedina_c + 2 == mossa_c || pedina_c - 2 == mossa_c) && 
@@ -566,7 +566,7 @@ pub(crate) async fn verifica_percorso_bianco(damiera: Vec<Vec<&str>>, giocatore:
                     }
                 }
 
-                // Setto la nuova posizione della pidina
+                // Setto la nuova posizione della pedina
                 pedina_r = mossa_r;
                 pedina_c = mossa_c;
             }
@@ -584,7 +584,7 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
 
     while err_mossa {
         
-        // Chiedo all'utente che mosse vole fare
+        // Chiedo all'utente che mosse vuole fare
         mosse = percorso(giocatore, timer).await;
 
         // Verifico che il giocatore non abbia abbandonato
@@ -627,7 +627,7 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
                     // Controllo se si fa una mossa o una cattura
                     if pedina_r + 1 == mossa_r && mosse.len() == 2 {
 
-                        // Controllo se la mossa è in indiagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
+                        // Controllo se la mossa è in diagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
                         if ((pedina_c == 0 && pedina_c + 1 == mossa_c) || 
                             (pedina_c == 7 && pedina_c - 1 == mossa_c) || 
                             ((pedina_c != 0 && pedina_c != 7) && (pedina_c + 1 == mossa_c || pedina_c - 1 == mossa_c))
@@ -658,7 +658,7 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
                     }
                     else if pedina_r + 2 == mossa_r {
     
-                        // Controllo se la mossa è in indiagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
+                        // Controllo se la mossa è in diagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
                         if (((pedina_c == 0 || pedina_c == 1) && pedina_c + 2 == mossa_c && damiera[pedina_r + 1][pedina_c + 1] == "b") ||
                             ((pedina_c == 7 || pedina_c == 6) && pedina_c - 2 == mossa_c && damiera[pedina_r + 1][pedina_c - 1] == "b") ||
                             ((pedina_c != 0 && pedina_c != 1 && pedina_c != 7 && pedina_c != 6) && (pedina_c + 2 == mossa_c || pedina_c - 2 == mossa_c) && ((mossa_c > pedina_c && damiera[pedina_r + 1][pedina_c + 1] == "b") || (mossa_c < pedina_c && damiera[pedina_r + 1][pedina_c - 1] == "b")))
@@ -711,7 +711,7 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
                 else {
                     // Dama
                     
-                    // Controllo se la mossa è in indiagonale, di non uscire dalla damiera e se si fa una mossa o una cattura
+                    // Controllo se la mossa è in diagonale, di non uscire dalla damiera e se si fa una mossa o una cattura
                     if ((pedina_r == 0 && pedina_r + 1 == mossa_r) || 
                         (pedina_r == 7 && pedina_r - 1 == mossa_r) || 
                         ((pedina_r != 0 && pedina_r != 7) && (pedina_r - 1 == mossa_r || pedina_r + 1 == mossa_r))
@@ -723,7 +723,7 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
                         // 2) mossa SU se si è sulla riga 7
                         // 3) mossa normale se si è al centro
 
-                        // Controllo se la mossa è in indiagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
+                        // Controllo se la mossa è in diagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
                         if ((pedina_c == 0 && pedina_c + 1 == mossa_c) || 
                             (pedina_c == 7 && pedina_c - 1 == mossa_c) || 
                             ((pedina_c != 0 && pedina_c != 7) && (pedina_c + 1 == mossa_c || pedina_c - 1 == mossa_c))
@@ -761,7 +761,7 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
                         // 2) cattura SU se si è sulla riga 7 o 6
                         // 3) cattura normale se si è al centro
 
-                        // Controllo se la mossa è in indiagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
+                        // Controllo se la mossa è in diagonale, di non uscire dalla damiera e se la casella di arrivo è vuota
                         if (((pedina_c == 0 || pedina_c == 1) && pedina_c + 2 == mossa_c && ((mossa_r > pedina_r && damiera[pedina_r + 1][pedina_c + 1] == "b") || (mossa_r > pedina_r && damiera[pedina_r + 1][pedina_c + 1] == "B") || (mossa_r < pedina_r && damiera[pedina_r - 1][pedina_c + 1] == "b") || (mossa_r < pedina_r && damiera[pedina_r - 1][pedina_c + 1] == "B"))) || 
                             ((pedina_c == 7 || pedina_c == 6) && pedina_c - 2 == mossa_c && ((mossa_r > pedina_r && damiera[pedina_r + 1][pedina_c - 1] == "b") || (mossa_r > pedina_r && damiera[pedina_r + 1][pedina_c - 1] == "B") || (mossa_r < pedina_r && damiera[pedina_r - 1][pedina_c - 1] == "b") || (mossa_r < pedina_r && damiera[pedina_r - 1][pedina_c - 1] == "B"))) || 
                             ((pedina_c != 0 && pedina_c != 1 && pedina_c != 7 && pedina_c != 6) && (pedina_c + 2 == mossa_c || pedina_c - 2 == mossa_c) && 
@@ -822,7 +822,7 @@ pub(crate) async fn verifica_percorso_nero(damiera: Vec<Vec<&str>>, giocatore: &
                     }
                 }
 
-                // Setto la nuova posizione della pidina
+                // Setto la nuova posizione della pedina
                 pedina_r = mossa_r;
                 pedina_c = mossa_c;
             }
@@ -847,7 +847,7 @@ pub(crate) async fn aggionra_damiera<'a>(percorso_valido: Vec<String>, mut damie
     for (n, m) in percorso_valido.iter().enumerate() {
 
         if n == 0 {
-            // Calcello la posizione iniziale della pedina
+            // Cancello la posizione iniziale della pedina
             damiera[pedina_r][pedina_c] = " ";
         }
         else {
@@ -894,7 +894,7 @@ pub(crate) async fn aggionra_damiera<'a>(percorso_valido: Vec<String>, mut damie
                 }
             }
 
-            // Setto la nuova posizione della pidina
+            // Setto la nuova posizione della pedina
             pedina_r = mossa_r;
             pedina_c = mossa_c;
         }   
@@ -944,22 +944,12 @@ async fn percorso(giocatore: &mut Player, timer: Duration) -> Vec<String> {
                 return mosse
             },
             Ok(Ok(x)) => {
-
                 // Se viene ritornato 0 vuol dire che il giocatore ha abbandonato
                 if x == 0 {
                     mosse.insert(0, "Err".to_string());
                     return mosse
                 }
             },
-            /*Ok(t) => {
-
-                // Se viene ritornato 0 vuol dire che il giocatore ha abbandonato
-                if t == 0 {
-                    mosse.insert(0, "Err".to_string());
-                    return mosse
-                }
-            },
-            Err(error) => println!("Error: {error}"),*/
         };
 
         // Elimino tutti gli elementi non necessari dalla stringa

@@ -35,7 +35,7 @@ impl game::Bot for Bot {
             
             match lnin!(input).as_str() {
                 "Turno bianco!" => {
-                    // Faccio muovere le pedine binche al bot
+                    // Faccio muovere le pedine bianche al bot
                     (mossa_scelta, damiera) = bot_bianco(damiera.clone()).await;
                 
                     // Invio la mossa scelta
@@ -51,7 +51,7 @@ impl game::Bot for Bot {
                 "Game Over ;)" => fine_partita = true, // Fermo il gioco perché la partita è terminata
                 s => {
                     
-                    // Prelevo la mossa del giocatore oppposto
+                    // Prelevo la mossa del giocatore opposto
                     if (s.contains("1") || s.contains("2") || s.contains("3") || s.contains("4") || s.contains("5") || s.contains("6") || s.contains("7") || s.contains("8")) && 
                        (s.contains("A") || s.contains("B") || s.contains("C") || s.contains("D") || s.contains("E") || s.contains("F") || s.contains("G") || s.contains("H") ||
                         s.contains("a") || s.contains("b") || s.contains("c") || s.contains("d") || s.contains("e") || s.contains("f") || s.contains("g") || s.contains("H")) &&
