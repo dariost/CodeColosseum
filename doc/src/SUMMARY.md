@@ -13,7 +13,6 @@
 - [Games](./games.md)
   - [roshambo](./games/roshambo.md)
   - [royalur](./games/royalur.md)
-  - [dama](./games/dama.md)
 - [Server Setup]()
 - [Writing a Game]()
 - [Network Protocol]()

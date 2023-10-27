@@ -102,4 +102,10 @@ impl game::Instance for Instance {
             sleep_until(start + self.pace).await;
         }
     }
+
+    async fn args(&self) -> HashMap<String, String> {
+        HashMap::from([
+            ("pace".to_owned(), format!("{:?}", self.pace)),
+        ])
+    }
 }

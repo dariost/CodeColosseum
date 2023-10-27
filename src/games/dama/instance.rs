@@ -139,4 +139,10 @@ impl game::Instance for Instance {
          _ = giocatore[1].output.write(("Game Over ;)\n\n").as_bytes()).await;
          _ = spectators.write(("Game Over ;)\n\n").as_bytes()).await;
     }
+
+    async fn args(&self) -> HashMap<String, String> {
+        HashMap::from([
+            ("pace".to_owned(), format!("{:?}", self.pace)),
+        ])
+    }
 }

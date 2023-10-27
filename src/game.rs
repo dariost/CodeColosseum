@@ -1,5 +1,5 @@
 use crate::games;
-pub(crate) use crate::proto::GameParams as Params;
+pub(crate) use crate::proto::{GameArgInfo, GameParams as Params, GameUsage};
 use crate::tuning::QUEUE_BUFFER;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -13,6 +13,7 @@ use tracing::{error, warn};
 pub(crate) trait Builder: Send + Sync + Debug {
     fn name(&self) -> &str;
     async fn description(&self) -> String;
+    async fn args(&self) -> HashMap<String, GameArgInfo>;
     async fn gen_instance(
         &self,
         param: &mut Params,
@@ -28,6 +29,9 @@ pub(crate) trait Instance: Send + Sync + Debug {
         players: HashMap<String, DuplexStream>,
         spectators: WriteHalf<DuplexStream>,
     );
+
+    /// Get arguments of this instance
+    async fn args(&self) -> HashMap<String, String>;
 }
 
 #[async_trait]
@@ -37,7 +41,7 @@ pub(crate) trait Bot: Send + Sync + Debug {
 
 #[derive(Debug)]
 pub(crate) enum Command {
-    GetList(oneshot::Sender<Vec<String>>),
+    GetList(oneshot::Sender<Vec<GameUsage>>),
     GetDescription(oneshot::Sender<Option<String>>, String),
     NewGame(
         oneshot::Sender<Result<(Box<dyn Instance>, Params), String>>,
@@ -70,7 +74,15 @@ pub(crate) async fn start() -> mpsc::Sender<Command> {
         while let Some(cmd) = rx.recv().await {
             match cmd {
                 Command::GetList(tx) => {
-                    send!(tx, games.keys().map(|x| x.clone()).collect());
+                    let mut result: Vec<GameUsage> = Vec::new();
+                    for game in games::get() {
+                        result.push(GameUsage {
+                            name: game.name().to_owned(),
+                            args: game.args().await,
+                        });
+                    }
+
+                    send!(tx, result);
                 }
                 Command::GetDescription(tx, name) => {
                     let result = if let Some(game) = games.get(&name) {

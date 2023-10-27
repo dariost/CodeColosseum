@@ -89,4 +89,11 @@ impl game::Instance for Instance {
             };
         }
     }
+
+    async fn args(&self) -> HashMap<String, String> {
+        HashMap::from([
+            ("pace".to_owned(), format!("{:?}", self.pace)),
+            ("rounds".to_owned(), format!("{}", self.rounds))
+        ])
+    }
 }

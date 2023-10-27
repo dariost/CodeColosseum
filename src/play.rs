@@ -1,3 +1,6 @@
+use crate::db;
+use crate::db::DatabaseHandle;
+use crate::db::MatchData;
 use crate::game;
 use crate::lobby;
 use crate::proto::MatchInfo;
@@ -37,6 +40,7 @@ pub(crate) enum Command {
 
 pub(crate) async fn start(
     mut instance: Box<dyn game::Instance>,
+    db: DatabaseHandle,
     bots: Vec<Box<dyn game::Bot>>,
     players: BTreeMap<String, mpsc::Sender<MatchEvent>>,
     spectators: broadcast::Sender<MatchEvent>,
@@ -69,9 +73,12 @@ pub(crate) async fn start(
         let mut spectate = split(msh).0;
         let mut history: Vec<u8> = Vec::new();
         let mut buffer = [0; PIPE_BUFFER];
+
+        let instance_args = instance.args().await;
         let mut instance = spawn(async move {
             instance.start(streams, split(gsh).1).await;
         });
+
         loop {
             select! {
                 result = spectate.read(&mut buffer) => {
@@ -115,16 +122,37 @@ pub(crate) async fn start(
                 warn!("Player \"{}\" did not receive MatchEvent::Ended", name);
             }
         }
+
+        let bot_count = hbot.len() as u32;
         for bot in hbot {
             bot.abort();
             if let Err(x) = bot.await {
                 warn!("Bot did not exit gracefully: {}", x);
             }
         }
+
+        let id_clone = id.clone();
         if let Err(_) = lobby.send(lobby::Command::DeleteGame(id)).await {
             error!("Cannot send delete request lobby::Command::DeleteGame");
         }
+
         info!("Game ended");
+
+        // Collect all informations that will be stored
+        let match_data = MatchData {
+            id: id_clone,
+            game_name: game,
+            args: instance_args,
+            bot_count,
+            players: players.keys().cloned().map(|x| x.to_string()).collect(),
+            history: history.clone()
+        };
+
+        if let Err(e) = db.send(db::Command::Store(match_data)).await {
+            error!("Cannot save history of game {}", e);
+        }
+
+
     }.instrument(span));
     tx
 }

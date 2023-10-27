@@ -1,4 +1,6 @@
 use crate::connection::Client;
+use crate::db::filesystem::{FileSystem, FileSystemArgs};
+use crate::db::{self, DatabaseHandle};
 use crate::tuning::{GAMENAME_REGEX, PASSWORD_REGEX, USERNAME_REGEX};
 use crate::{game, lobby};
 use rand::rngs::{OsRng, StdRng};
@@ -8,7 +10,7 @@ use std::error::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpListener;
 use tokio::spawn;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio_tungstenite::accept_hdr_async;
 use tokio_tungstenite::tungstenite::handshake::server as tuns;
 use tracing::{error, info, warn};
@@ -26,6 +28,7 @@ use {
 pub(crate) struct Services {
     pub(crate) game: mpsc::Sender<game::Command>,
     pub(crate) lobby: mpsc::Sender<lobby::Command>,
+    pub(crate) db: DatabaseHandle,
 }
 
 async fn handle_raw_socket<T: AsyncRead + AsyncWrite + Unpin>(
@@ -121,7 +124,15 @@ pub(crate) async fn start(args: crate::CliArgs) {
     let username_regex = init!(Regex::new(USERNAME_REGEX));
     let gamename_regex = init!(Regex::new(GAMENAME_REGEX));
     let password_regex = init!(Regex::new(PASSWORD_REGEX));
+
     let srv_game = game::start().await;
+
+    let root_dir = args.database_dir.clone();
+    if let Err(e) = tokio::fs::create_dir_all(&root_dir).await {
+        error!("Unable to create database directory: {}", e);
+    }
+
+    let db = db::start::<FileSystem>(FileSystemArgs { root_dir });
     let services = Services {
         game: srv_game.clone(),
         lobby: lobby::start(
@@ -131,9 +142,12 @@ pub(crate) async fn start(args: crate::CliArgs) {
             password_regex,
             verification_pw,
             srv_game,
+            db.clone(),
         )
         .await,
+        db: db.clone(),
     };
+
     #[cfg(unix)]
     let result = if args.unix_domain_socket {
         uds_listener(args, services).await

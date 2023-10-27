@@ -1,6 +1,9 @@
+mod db;
 mod proto;
+mod tuning;
 
 use crate::proto::{GameParams, MatchInfo, Reply, Request};
+use async_trait::async_trait;
 use clap::{ArgEnum, Parser, Subcommand};
 use futures_util::sink::Sink;
 use futures_util::stream::Stream;
@@ -9,6 +12,7 @@ use prettytable::format::Alignment::CENTER;
 use prettytable::{Attr, Cell, Row, Table};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::io::{stdin, stdout, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -56,6 +60,9 @@ enum Command {
     New(NewCommand),
     /// Play or spectate a game
     Connect(ConnectCommand),
+    /// List all saved matches 
+    /// or retrive the history of a specific match
+    History(HistoryCommand),
 }
 
 impl Command {
@@ -72,6 +79,7 @@ impl Command {
             Command::Lobby(cmd) => cmd.run(wsout, wsin).await,
             Command::New(cmd) => cmd.run(wsout, wsin).await,
             Command::Connect(cmd) => cmd.run(wsout, wsin).await,
+            Command::History(cmd) => cmd.run(wsout, wsin).await,
         }
     }
 }
@@ -97,15 +105,82 @@ where
     loop {
         if let Some(msg) = wsin.next().await {
             match msg {
+                Ok(Message::Binary(x)) => match bincode::deserialize(&x[..]) {
+                    Ok(x) => break Ok(x),
+                    Err(e) => break Err(format!("Could not deserialize server reply: {}", e))
+                },
                 Ok(Message::Text(x)) => match Reply::parse(&x) {
                     Ok(x) => break Ok(x),
                     Err(x) => break Err(format!("Could not parse server reply: {}", x)),
                 },
                 Err(x) => break Err(format!("Connection lost while waiting for reply: {}", x)),
-                Ok(_) => {}
+                _ => { }
             }
         } else {
             break Err(format!("Connection lost while waiting for reply"));
+        }
+    }
+}
+
+#[derive(ArgEnum, Clone, Debug)]
+enum HistoryCommandDisplayEnum {
+    Raw, Pretty, Json
+}
+
+#[derive(Parser, Debug)]
+struct HistoryCommand {
+    #[clap(help = "Show the match data of the game with this id")]
+    id: Option<String>, 
+    #[clap(arg_enum, default_value = "pretty", short, long,
+           help = "How to display the match data")]
+    display: HistoryCommandDisplayEnum,
+}
+
+impl HistoryCommand {
+    async fn run<T, U>(self, wsout: &mut T, wsin: &mut U) -> Result<(), String>
+    where
+        T: Sink<Message> + Unpin,
+        <T as Sink<Message>>::Error: Display,
+        U: Stream<Item = Result<Message, TsError>> + Unpin,
+    {
+        let request = match self.id {
+            Some(id) => Request::HistoryMatch { id },
+            None => Request::HistoryMatchList,
+        };
+
+        // Send request to server
+        match oneshot_request(request, wsout, wsin).await? {
+            Reply::HistoryMatch(match_data_result) => {
+                match match_data_result {
+                    Err(e) => return Err(format!("History error: {:?}", e)),
+                    Ok(match_data) => {
+                        match self.display {
+                            HistoryCommandDisplayEnum::Pretty => println!("{}", match_data),
+                            HistoryCommandDisplayEnum::Raw => {
+                                match std::str::from_utf8(&match_data.history) {
+                                    Err(e) => return Err(format!("Unable to decode history as utf8: {}", e)),
+                                    Ok(history) => println!("{}", history)
+                                }
+                            },
+                            HistoryCommandDisplayEnum::Json => {
+                                match serde_json::to_string_pretty(&match_data) {
+                                    Err(e) => return Err(format!("Unable to parse history data to json: {}", e)),
+                                    Ok(json_string) => println!("{}", json_string)
+                                };
+                            }
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+            Reply::HistoryMatchList(matches) => {
+                for value in &matches {
+                    println!("- {}", value);
+                }
+                Ok(())
+            }
+            _ => Err(format!("Server responded with wrong message")),
         }
     }
 }
@@ -114,6 +189,8 @@ where
 struct ListCommand {
     #[clap(help = "Show one game with its description")]
     filter: Option<String>,
+    #[clap(short, long, help = "Show games and their usage")]
+    usage: bool,
 }
 
 impl ListCommand {
@@ -132,8 +209,13 @@ impl ListCommand {
         };
         match oneshot_request(request, wsout, wsin).await? {
             Reply::GameList { games } => {
-                for game in games {
-                    println!("- {}", game);
+                if self.usage {
+                    let usage_text = serde_json::to_string_pretty(&games).unwrap();
+                    println!("{}", usage_text);
+                } else {
+                    for game in games {
+                        println!("- {}", game.name);
+                    }
                 }
                 Ok(())
             }

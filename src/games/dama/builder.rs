@@ -2,6 +2,7 @@ use super::bot::Bot;
 use super::instance::Instance;
 use crate::game;
 use crate::games;
+use crate::proto::GameArgInfo;
 use async_trait::async_trait;
 use games::util::arg;
 use rand::rngs::{OsRng, StdRng};
@@ -29,6 +30,17 @@ impl game::Builder for Builder {
     async fn description(&self) -> String {
         String::from(include_str!("description.md"))
     }
+
+    async fn args(&self) -> HashMap<String, GameArgInfo> {
+        HashMap::from([(
+            "pace".to_owned(),
+            GameArgInfo {
+                description: "How fast the game plays (0-30)".to_owned(),
+                regex: "^(30|([12][0-9]|[0-9])(.[0-9]*)?)$".to_owned(),
+            },
+        )])
+    }
+
     async fn gen_instance(
         &self,
         param: &mut game::Params,
