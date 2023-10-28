@@ -87,9 +87,10 @@ impl game::Bot for Bot {
                 	//println!(">>> BOT: Mossa valida, cambio turno");
                     board = board.apply_move_type(opt.expect("Invalid MoveType received"));
                 } else {
-                	//println!(">>> BOT: Mossa non valida, leggo nuova mossa");
+                	//println!(">>> BOT: Mossa non valida");
                     lnout!(output, format!("INVALID_MOVE <Server sent invalid move {}>", trimmed));
                     turn = 1 - turn;
+                    break;
                 }
             }
             // After each move, the turn variable is flipped (turn = 1 - turn) to switch between the bot's turn and the opponent's turn.

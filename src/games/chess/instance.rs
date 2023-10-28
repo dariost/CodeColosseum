@@ -172,6 +172,10 @@ impl game::Instance for Instance {
                         turn = 1 - turn;
                     } else {
 			            //println!(">>> PLAYER: Mossa ricevuta non valida");
+				        retired = 1;
+				        hide_output = 1;
+				        retired!(p[1 - turn].output, spectators);
+				        continue;
                         /*lnout!(
                             p[turn].output,
                             "INVALID_MOVE <Impossible to recognize move>"
@@ -192,7 +196,10 @@ impl game::Instance for Instance {
                     }
                     None => {
                         lnout!(p[turn].output, "INVALID_MOVE <Impossible to apply move>");
-                        continue;
+				        retired = 1;
+				        hide_output = 1;
+				        retired!(p[1 - turn].output, spectators);
+				        continue;
                     }
                 }
                 turn = 1 - turn;
@@ -204,12 +211,14 @@ impl game::Instance for Instance {
 
         // Game ending messages
         if draw != 2 && hide_output == 0 {
-            lnout!(p[1 - turn].output, "CHECKMATE! You win!");
-            lnout!(p[turn].output, "CHECKMATE! You loose!");
             if turn == 0 {
-                lnout!(spectators, "CHECKMATE! Black wins!");
+                lnout!(spectators, "WINNER <BLACK>");
+            	lnout!(p[1 - turn].output, "WINNER <BLACK>");
+            	lnout!(p[turn].output, "WINNER <BLACK>");
             } else {
-                lnout!(spectators, "CHECKMATE! White wins!");
+                lnout!(spectators, "WINNER <WHITE>");
+            	lnout!(p[1 - turn].output, "WINNER <WHITE>");
+            	lnout!(p[turn].output, "WINNER <WHITE>");
             };
         }
     }
