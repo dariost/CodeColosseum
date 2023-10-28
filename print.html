@@ -1,42 +1,28 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js coal">
+<html lang="en" class="coal" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>Code Colosseum</title>
-        
-        <meta name="robots" content="noindex" />
-        
-        
+        <meta name="robots" content="noindex">
 
 
         <!-- Custom HTML head -->
         
-
-
-        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#ffffff">
 
-        
         <link rel="icon" href="favicon.svg">
-        
-        
         <link rel="shortcut icon" href="favicon.png">
-        
         <link rel="stylesheet" href="css/variables.css">
         <link rel="stylesheet" href="css/general.css">
         <link rel="stylesheet" href="css/chrome.css">
-        
         <link rel="stylesheet" href="css/print.css" media="print">
-        
 
         <!-- Fonts -->
         <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
-        
         <link rel="stylesheet" href="fonts/fonts.css">
-        
 
         <!-- Highlight.js Stylesheets -->
         <link rel="stylesheet" href="highlight.css">
@@ -44,22 +30,20 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
-        
 
-        
         <!-- MathJax -->
-        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-        
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     </head>
-    <body>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
         <!-- Provide site root to javascript -->
-        <script type="text/javascript">
+        <script>
             var path_to_root = "";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
-        <script type="text/javascript">
+        <script>
             try {
                 var theme = localStorage.getItem('mdbook-theme');
                 var sidebar = localStorage.getItem('mdbook-sidebar');
@@ -75,83 +59,105 @@
         </script>
 
         <!-- Set the theme before any content is loaded, prevents flash -->
-        <script type="text/javascript">
+        <script>
             var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             var html = document.querySelector('html');
-            html.classList.remove('no-js')
             html.classList.remove('coal')
             html.classList.add(theme);
-            html.classList.add('js');
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
         </script>
 
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
         <!-- Hide / unhide sidebar before it is displayed -->
-        <script type="text/javascript">
-            var html = document.querySelector('html');
-            var sidebar = 'hidden';
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
             }
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="coco.html"><strong aria-hidden="true">1.</strong> Code Colosseum</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="coco/arch.html"><strong aria-hidden="true">1.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="coco/lobby.html"><strong aria-hidden="true">1.2.</strong> Lobby</a></li></ol></li><li class="chapter-item expanded "><a href="cli.html"><strong aria-hidden="true">2.</strong> Command Line Client</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cli/list.html"><strong aria-hidden="true">2.1.</strong> list</a></li><li class="chapter-item expanded "><a href="cli/lobby.html"><strong aria-hidden="true">2.2.</strong> lobby</a></li><li class="chapter-item expanded "><a href="cli/new.html"><strong aria-hidden="true">2.3.</strong> new</a></li><li class="chapter-item expanded "><a href="cli/connect.html"><strong aria-hidden="true">2.4.</strong> connect</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cli/stdio.html"><strong aria-hidden="true">2.4.1.</strong> stdio</a></li><li class="chapter-item expanded "><a href="cli/pipe.html"><strong aria-hidden="true">2.4.2.</strong> pipe</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="games.html"><strong aria-hidden="true">3.</strong> Games</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="games/roshambo.html"><strong aria-hidden="true">3.1.</strong> roshambo</a></li><li class="chapter-item expanded "><a href="games/royalur.html"><strong aria-hidden="true">3.2.</strong> royalur</a></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Server Setup</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Writing a Game</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Network Protocol</div></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="coco.html"><strong aria-hidden="true">1.</strong> Code Colosseum</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="coco/arch.html"><strong aria-hidden="true">1.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="coco/lobby.html"><strong aria-hidden="true">1.2.</strong> Lobby</a></li></ol></li><li class="chapter-item expanded "><a href="cli.html"><strong aria-hidden="true">2.</strong> Command Line Client</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cli/list.html"><strong aria-hidden="true">2.1.</strong> list</a></li><li class="chapter-item expanded "><a href="cli/lobby.html"><strong aria-hidden="true">2.2.</strong> lobby</a></li><li class="chapter-item expanded "><a href="cli/new.html"><strong aria-hidden="true">2.3.</strong> new</a></li><li class="chapter-item expanded "><a href="cli/connect.html"><strong aria-hidden="true">2.4.</strong> connect</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cli/stdio.html"><strong aria-hidden="true">2.4.1.</strong> stdio</a></li><li class="chapter-item expanded "><a href="cli/pipe.html"><strong aria-hidden="true">2.4.2.</strong> pipe</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="games.html"><strong aria-hidden="true">3.</strong> Games</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="games/roshambo.html"><strong aria-hidden="true">3.1.</strong> roshambo</a></li><li class="chapter-item expanded "><a href="games/royalur.html"><strong aria-hidden="true">3.2.</strong> royalur</a></li><li class="chapter-item expanded "><a href="games/dama.html"><strong aria-hidden="true">3.3.</strong> dama</a></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">4.</strong> Server Setup</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Writing a Game</div></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Network Protocol</div></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                
-                <div id="menu-bar-hover-placeholder"></div>
-                <div id="menu-bar" class="menu-bar sticky bordered">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
-                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
-                        </button>
+                        </label>
                         <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
                             <i class="fa fa-paint-brush"></i>
                         </button>
                         <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
                             <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
-                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        
                         <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
-                        
                     </div>
 
                     <h1 class="menu-title">Code Colosseum</h1>
 
                     <div class="right-buttons">
-                        
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
-                        
-                        
                         <a href="https://github.com/dariost/CodeColosseum" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        
+
                     </div>
                 </div>
 
-                
                 <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -159,10 +165,9 @@
                         </ul>
                     </div>
                 </div>
-                
 
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
-                <script type="text/javascript">
+                <script>
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
                     document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
                     Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
@@ -184,7 +189,7 @@ supported games.</p>
 <h2 id="license"><a class="header" href="#license">License</a></h2>
 <p><strong>Code Colosseum</strong> is free software. It's released under the
 <a href="https://www.mozilla.org/MPL/2.0/">Mozilla Public License v2.0</a>.</p>
-<h1 id="architecture"><a class="header" href="#architecture">Architecture</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="architecture"><a class="header" href="#architecture">Architecture</a></h1>
 <p><strong>Code Colosseum</strong> has a peculiar architecture when compared with software with
 similar purposes (e.g. contest management systems): <em>all user programs run on the</em>
 <em>user's machine</em>. This is not <em>that</em> unusual, in fact some competitions, such as
@@ -204,7 +209,7 @@ primary purpose is to deal with multiplayer games, as such the concept of the mo
 traditional evaluator is substituted with the concept of game manager, which is a
 program that manages an instance of a game, collects inputs from \( n \) clients,
 computes the game simulation accordingly, and sends back the updates.</p>
-<h1 id="lobby"><a class="header" href="#lobby">Lobby</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="lobby"><a class="header" href="#lobby">Lobby</a></h1>
 <p><strong>Code Colosseum</strong> provides no user authentication by design. The rationale is
 to keep its codebase and its setup as simple as possible. This, however, comes
 at the cost of having a (bit) more complicated match setup.</p>
@@ -246,7 +251,7 @@ parties, the stream is not supposed to be human-readable, and as such will likel
 need to be connected to a program that renders it in a human-readable way.</p>
 <p>Note that some games provide such rendering programs, some even with a graphical
 user interface.</p>
-<h1 id="command-line-client"><a class="header" href="#command-line-client">Command Line Client</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="command-line-client"><a class="header" href="#command-line-client">Command Line Client</a></h1>
 <p><strong>Code Colosseum</strong> provdes <code>coco</code>, a command line client that provides an user
 interface to interact with a <strong>Code Colosseum</strong> server.</p>
 <h2 id="prebuilt-binaries"><a class="header" href="#prebuilt-binaries">Prebuilt binaries</a></h2>
@@ -285,7 +290,7 @@ thus all examples will feature such server. As a first example, the invocation o
 <code>coco</code> to list the available games on the official server would be:</p>
 <pre><code class="language-shell">$ coco -s wss://code.colosseum.cf/ list
 </code></pre>
-<h1 id="list"><a class="header" href="#list">list</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="list"><a class="header" href="#list">list</a></h1>
 <p>This subcommand can be used to list the available games on a server:</p>
 <pre><code class="language-shell">$ coco -s wss://code.colosseum.cf/ list
 </code></pre>
@@ -300,7 +305,7 @@ available, a PDF can be generated from the description of a game using the follo
 command:</p>
 <pre><code class="language-shell">$ coco -s wss://code.colosseum.cf/ list roshambo | pandoc -o roshambo.pdf
 </code></pre>
-<h1 id="lobby-1"><a class="header" href="#lobby-1">lobby</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="lobby-1"><a class="header" href="#lobby-1">lobby</a></h1>
 <p>This subcommand can be used to list waiting to start and running matches currently
 present in the lobby:</p>
 <pre><code class="language-shell">$ coco -s wss://code.colosseum.cf/ lobby
@@ -317,7 +322,7 @@ present in the lobby:</p>
 <li><strong>Password</strong>: whether a password is needed to join the match;</li>
 <li><strong>Timing</strong>: expiration information for waiting to start matches and running time for running matches.</li>
 </ul>
-<h1 id="new"><a class="header" href="#new">new</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="new"><a class="header" href="#new">new</a></h1>
 <p>This subcommand can be used to create a new match. The bare minimum needed to
 create a match is to provide the game to be played. For instance, creating a match
 of <code>roshambo</code> can be done using the following command:</p>
@@ -348,7 +353,7 @@ an error message will be shown.</p>
 <p>To create a verified game, if in posses of the server master password, the <code>-v</code> switch can be used:</p>
 <pre><code class="language-shell">$ coco -s wss://code.colosseum.cf/ new roshambo -v &quot;servermasterpassword&quot;
 </code></pre>
-<h1 id="connect"><a class="header" href="#connect">connect</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="connect"><a class="header" href="#connect">connect</a></h1>
 <p>This subcommand can be used to join a waiting-to-be-started match or spectate
 any match (either already running or not). The bare minimum needed to join or
 spectate a match is the match unique ID and a local program to run which will
@@ -382,7 +387,7 @@ can be choosed using the <code>-c</code> switch:</p>
 <pre><code class="language-shell">$ coco -s wss://code.colosseum.cf/ connect -c &quot;pipe&quot; &quot;abacaba&quot; -- prog.exe
 </code></pre>
 <p>The details of such channels are discussed in the further subsubsections.</p>
-<h1 id="stdio-channel"><a class="header" href="#stdio-channel">stdio channel</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="stdio-channel"><a class="header" href="#stdio-channel">stdio channel</a></h1>
 <p>The <code>stdio</code> communication channel uses the program <code>stdout</code> for output and
 <code>stdin</code> for input. This is the classically used communication method for
 most of the contents management systems.</p>
@@ -406,7 +411,7 @@ if __name__ == &quot;__main__&quot;:
     print(&quot;to_server&quot;, flush=True)
     print(&quot;debug print&quot;, file=stderr)
 </code></pre>
-<h1 id="pipe-channel"><a class="header" href="#pipe-channel">pipe channel</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="pipe-channel"><a class="header" href="#pipe-channel">pipe channel</a></h1>
 <p>The <code>pipe</code> communication channel uses <a href="https://en.wikipedia.org/wiki/Named_pipe">named pipes</a>
 as the communication mean to and from the program. Since the implementation of
 named pipes is wildly different between Unix-like operating systems and Windows,
@@ -441,7 +446,7 @@ if __name__ == &quot;__main__&quot;:
 </code></pre>
 <h2 id="windows"><a class="header" href="#windows">Windows</a></h2>
 <p>The <code>pipe</code> communication channel is currently unavailable on Windows.</p>
-<h1 id="games"><a class="header" href="#games">Games</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="games"><a class="header" href="#games">Games</a></h1>
 <p>The following subsections contain the descriptions of available games.</p>
 <p>The standard format for a description contains:</p>
 <ul>
@@ -449,7 +454,7 @@ if __name__ == &quot;__main__&quot;:
 <li>an <em>Implementation details</em> subsection, containing the description of the communication protocol between the players programs and the server, as well as the one for spectators;</li>
 <li>a <em>Game parameters</em> subsection, containing the game-specific parameters that can be passed on the creation of a match via the <code>-a</code> switch, if using the command line client.</li>
 </ul>
-<h1 id="roshambo-rock-paper-scissors"><a class="header" href="#roshambo-rock-paper-scissors">roshambo (Rock Paper Scissors)</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="roshambo-rock-paper-scissors"><a class="header" href="#roshambo-rock-paper-scissors">roshambo (Rock Paper Scissors)</a></h1>
 <p><strong>Rock Paper Scissors</strong> (also called <em>roshambo</em>) is one of the most basic hand games.</p>
 <p>It is played by two players, which in each round choose one of the gestures <em>paper</em>, <em>rock</em> or <em>scissors</em> and show them at the same time. If the two gestures chosen are different, the winner is computed as follows:</p>
 <ul>
@@ -531,7 +536,7 @@ SCISSORS
 <li><code>rounds</code>: specifies the number of rounds;</li>
 <li><code>pace</code>: specifies a minimum time interval (in seconds) between rounds.</li>
 </ul>
-<h1 id="royalur-royal-game-of-ur"><a class="header" href="#royalur-royal-game-of-ur">royalur (Royal Game of Ur)</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="royalur-royal-game-of-ur"><a class="header" href="#royalur-royal-game-of-ur">royalur (Royal Game of Ur)</a></h1>
 <p>The Royal Game of Ur is one the oldest board games, dating back to at least 5000 years ago. <a href="https://www.youtube.com/watch?v=WZskjLq040I">This excellent video</a> gives a thorough introduction to this game, explaining its rules from <a href="https://www.youtube.com/watch?v=WZskjLq040I&amp;t=221s">3:41</a> to 5:10.</p>
 <svg width="196.5mm" height="74.001mm" version="1.1" viewBox="0 0 196.5 74.001" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
 <metadata>
@@ -695,14 +700,288 @@ RETIRE
 <li>the default timeout is <code>90</code> seconds;</li>
 <li>no more than <code>1</code> server bot per game is allowed.</li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="dama"><a class="header" href="#dama">Dama</a></h1>
+<p>The checker takes place between two players, arranged on opposite sides of a damsel, who move their pieces alternately; one player has white pieces, the other black ones. The pieces move diagonally, only on the dark squares not occupied by other pieces and have the opportunity to capture (familiarly, &quot;eat&quot;) those opponents, bypassing them. Captured pieces are removed from the damiera and excluded from the game. The player to whom all the pieces are captured or who, on his turn of move, is unable to move, has lost.</p>
+<p>Simple pieces (checkers) can move only one box at a time, diagonally and forward; they can also take an opposing piece by making a movement of two squares in the same direction, jumping over the opposing piece in the middle box. If in the arrival box the checker is able to make a new grip, you are in the presence of a multiple grip, which must be completed in the same game turn.</p>
+<p>When a checker reaches the opposing base, which is the most distant line in its direction of travel, it becomes a checker. The checker is marked by placing an additional piece above the first and enjoys special powers: unlike the checkers, can move and capture both forward and backward. Ladies can’t be eaten by pawns.</p>
+<p>To conclude, the ancient rule of the &quot;breath&quot;, that is to capture the opposing piece that even having right, for distraction or choice had not eaten, was abolished by the Federation Checkers in 1934.</p>
+<h2 id="implementation-details-2"><a class="header" href="#implementation-details-2">Implementation details</a></h2>
+<p>At the beginning of the game the names of the players are printed on screen and it is indicated if you have the white or black checkers, then the damiera is printed and the game begins the player who owns the white checkers.</p>
+<p>The spectators will receive the names of the players, the round and the damsel.</p>
+<p>Each player is notified when it is his turn and during the latter will have to make a move or capture if possible. In case the move or a catch is not valid you will have to try again.</p>
+<p>The game ends when one of the two players runs out of tokens and is later declared the winner.</p>
+<h3 id="example-1"><a class="header" href="#example-1">Example</a></h3>
+<p>This is an example of the streams of two players, <code>PlayerA</code> and <code>PlayerB</code>, and the spectators for an hypothetical game.</p>
+<h4 id="move"><a class="header" href="#move">Move</a></h4>
+<p>Stream of <code>PlayerA</code>:</p>
+<pre><code class="language-text">PlayerA
+PlayerB
+Avvio la partita di dama...
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][n][ ][n][ ][n][ ][n] 3
+4 [ ][ ][ ][ ][ ][ ][ ][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][b][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+
+Sei i Bianchi
+Turno bianco!
+E' il tuo turno.
+
+Inserisci la pedina che vuoi muovere e poi le mosse che vuoi fare
+Es &gt; 6A 5B oppure 6A 4C 2A oppure 6A 4C 2A ...
+6e 5d
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][n][ ][n][ ][n][ ][n] 3
+4 [ ][ ][ ][ ][ ][ ][ ][ ] 4
+5 [ ][ ][ ][b][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][ ][ ][b][ ] 6
+7 [ ][b][ ][b][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+</code></pre>
+<p>Stream of <code>PlayerB</code>:</p>
+<pre><code class="language-text">PlayerA
+PlayerB
+Avvio la partita di dama...
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][n][ ][n][ ][n][ ][n] 3
+4 [ ][ ][ ][ ][ ][ ][ ][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][b][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+
+Sei i Neri
+Turno bianco!
+
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][n][ ][n][ ][n][ ][n] 3
+4 [ ][ ][ ][ ][ ][ ][ ][ ] 4
+5 [ ][ ][ ][b][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][ ][ ][b][ ] 6
+7 [ ][b][ ][b][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+</code></pre>
+<p>Stream of spectators:</p>
+<pre><code class="language-text">PlayerA
+PlayerB
+Avvio la partita di dama...
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][n][ ][n][ ][n][ ][n] 3
+4 [ ][ ][ ][ ][ ][ ][ ][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][b][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+
+Turno bianco!
+
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][n][ ][n][ ][n][ ][n] 3
+4 [ ][ ][ ][ ][ ][ ][ ][ ] 4
+5 [ ][ ][ ][b][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][ ][ ][b][ ] 6
+7 [ ][b][ ][b][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+</code></pre>
+<h4 id="single-catch"><a class="header" href="#single-catch">Single catch</a></h4>
+<p>Stream of <code>PlayerA</code>:</p>
+<pre><code class="language-text">   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][n][ ][n][ ][ ] 3
+4 [n][ ][b][ ][ ][ ][n][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][ ][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+
+Turno nero!
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][ ][ ][n][ ][ ] 3
+4 [n][ ][ ][ ][ ][ ][n][ ] 4
+5 [ ][n][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][ ][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+</code></pre>
+<p>Stream of <code>PlayerB</code>:</p>
+<pre><code class="language-text">   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][n][ ][n][ ][ ] 3
+4 [n][ ][b][ ][ ][ ][n][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][ ][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+
+Turno nero!
+E' il tuo turno.
+
+Inserisci la pedina che vuoi muovere e poi le mosse che vuoi fare
+Es &gt; 6A 5B oppure 6A 4C 2A oppure 6A 4C 2A ...
+3d 5b
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][ ][ ][n][ ][ ] 3
+4 [n][ ][ ][ ][ ][ ][n][ ] 4
+5 [ ][n][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][ ][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+</code></pre>
+<p>Stream of spectators:</p>
+<pre><code class="language-text">   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][n][ ][n][ ][ ] 3
+4 [n][ ][b][ ][ ][ ][n][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][ ][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+
+Turno nero!
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][ ][ ][n][ ][ ] 3
+4 [n][ ][ ][ ][ ][ ][n][ ] 4
+5 [ ][n][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][ ][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+</code></pre>
+<h4 id="multiple-capture"><a class="header" href="#multiple-capture">Multiple capture</a></h4>
+<p>Stream of <code>PlayerA</code>:</p>
+<pre><code class="language-text">   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][n][ ][n][ ][ ] 3
+4 [n][ ][b][ ][ ][ ][n][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][ ][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+
+Turno nero!
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][ ][ ][n][ ][ ] 3
+4 [n][ ][ ][ ][ ][ ][n][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][ ][ ][b][ ][b][ ] 6
+7 [ ][b][ ][n][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+</code></pre>
+<p>Stream of <code>PlayerB</code>:</p>
+<pre><code class="language-text">   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][n][ ][n][ ][ ] 3
+4 [n][ ][b][ ][ ][ ][n][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][ ][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+
+Turno nero!
+E' il tuo turno.
+
+Inserisci la pedina che vuoi muovere e poi le mosse che vuoi fare
+Es &gt; 6A 5B oppure 6A 4C 2A oppure 6A 4C 2A ...
+3d 5b 7d
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][ ][ ][n][ ][ ] 3
+4 [n][ ][ ][ ][ ][ ][n][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][ ][ ][b][ ][b][ ] 6
+7 [ ][b][ ][n][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+</code></pre>
+<p>Stream of spectators:</p>
+<pre><code class="language-text">   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][n][ ][n][ ][ ] 3
+4 [n][ ][b][ ][ ][ ][n][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][b][ ][b][ ][b][ ] 6
+7 [ ][b][ ][ ][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+
+Turno nero!
+
+   A  B  C  D  E  F  G  H
+1 [ ][n][ ][n][ ][n][ ][n] 1
+2 [n][ ][n][ ][n][ ][n][ ] 2
+3 [ ][ ][ ][ ][ ][n][ ][ ] 3
+4 [n][ ][ ][ ][ ][ ][n][ ] 4
+5 [ ][ ][ ][ ][ ][ ][ ][ ] 5
+6 [b][ ][ ][ ][b][ ][b][ ] 6
+7 [ ][b][ ][n][ ][b][ ][b] 7
+8 [b][ ][b][ ][b][ ][b][ ] 8
+   A  B  C  D  E  F  G  H
+</code></pre>
+<h2 id="additional-information"><a class="header" href="#additional-information">Additional information</a></h2>
+<ul>
+<li>the game can only be played by exactly <code>2</code> players</li>
+<li>no more than <code>1</code> server bot per game is allowed.</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                        
 
-                        
 
                         <div style="clear: both"></div>
                     </nav>
@@ -710,51 +989,37 @@ RETIRE
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                
 
-                
             </nav>
 
         </div>
 
-        
 
-        
 
-        
 
-        
-        <script type="text/javascript">
+        <script>
             window.playground_copyable = true;
         </script>
-        
 
-        
 
-        
-        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
-        
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
 
-        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
-        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
-        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
-        
 
-        
-        
-        <script type="text/javascript">
+        <script>
         window.addEventListener('load', function() {
             MathJax.Hub.Register.StartupHook('End', function() {
                 window.setTimeout(window.print, 100);
             });
         });
         </script>
-        
-        
 
+    </div>
     </body>
 </html>
