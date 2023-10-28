@@ -6,7 +6,7 @@ pub(crate) async fn partita_in_corso(
     damiera: Vec<Vec<&str>>,
     giocatore: &mut Vec<Player>,
     spectators: &mut WriteHalf<DuplexStream>,
-    turno_binaco: bool,
+    turno_bianco: bool,
 ) -> bool {
     let mut fine_partita: bool = false;
     let mut n_pedine_bianche: usize = 0;
@@ -54,10 +54,10 @@ pub(crate) async fn partita_in_corso(
             .await;
 
         fine_partita = true;
-    } else if mosse_possibili(damiera.clone(), turno_binaco).await == false
+    } else if mosse_possibili(damiera.clone(), turno_bianco).await == false
     // Controllo se è possibile per il prossimo giocatore fare uno spostamento o una cattura
     {
-        if turno_binaco == true {
+        if turno_bianco == true {
             _ = giocatore[0]
                 .output
                 .write(
@@ -106,14 +106,14 @@ pub(crate) async fn partita_in_corso(
     fine_partita
 }
 
-async fn mosse_possibili(damiera: Vec<Vec<&str>>, turno_binaco: bool) -> bool {
+async fn mosse_possibili(damiera: Vec<Vec<&str>>, turno_bianco: bool) -> bool {
     let mut mossa: bool = false; // Setto se è possibile o meno fare una mossa che sia uno spostamento o una cattura
     let mut pedine: Vec<Vec<usize>> = Vec::new(); // Setto il vettore che contiene le pedine del giocatore
     let mut dame: Vec<Vec<usize>> = Vec::new(); // Setto il vettore che contiene le dame del giocatore
     let mut row: usize;
     let mut col: usize;
 
-    if turno_binaco == true {
+    if turno_bianco == true {
         // Prelevo le Dame e le pedine bianche
         for r in 0..damiera.len() {
             for c in 0..damiera[r].len() {
@@ -1158,7 +1158,7 @@ async fn percorso(giocatore: &mut Player, timer: Duration) -> Vec<String> {
 
     // Controllo le mosse siano all'interno della damiera
     while err_mosse {
-        _ = giocatore.output.write(("Inserisci la pedina che vui muovere e poi le mosse che vuio fare\nEs > 6A 5B oppure 6A 4C 2A oppure 6A 4C 2A ...\n").as_bytes()).await;
+        _ = giocatore.output.write(("Inserisci la pedina che vuoi muovere e poi le mosse che vuoi fare\nEs > 6A 5B oppure 6A 4C 2A oppure 6A 4C 2A ...\n").as_bytes()).await;
 
         // Pulisco la variabili altrimenti si portano dietro tutti i valori precedenti
         percorso.clear();

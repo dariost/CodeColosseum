@@ -55,7 +55,7 @@ impl game::Builder for Builder {
         let pace = match arg(&args, "pace", DEFAULT_PACE) {
             Ok(x) if x < 0.0 || x > 30.0 => return Err(format!("Invalid pace")),
             Ok(x) => x,
-            Err(x) => return Err(format!("Invaid pace: {}", x)),
+            Err(x) => return Err(format!("Invalid pace: {}", x)),
         };
         let rng = match StdRng::from_rng(OsRng) {
             Ok(x) => x,

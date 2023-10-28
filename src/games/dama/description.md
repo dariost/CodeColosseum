@@ -46,7 +46,7 @@ Sei i Bianchi
 Turno bianco!
 E' il tuo turno.
 
-Inserisci la pedina che vui muovere e poi le mosse che vuio fare
+Inserisci la pedina che vuoi muovere e poi le mosse che vuoi fare
 Es > 6A 5B oppure 6A 4C 2A oppure 6A 4C 2A ...
 6e 5d
 
@@ -177,7 +177,7 @@ Stream of `PlayerB`:
 Turno nero!
 E' il tuo turno.
 
-Inserisci la pedina che vui muovere e poi le mosse che vuio fare
+Inserisci la pedina che vuoi muovere e poi le mosse che vuoi fare
 Es > 6A 5B oppure 6A 4C 2A oppure 6A 4C 2A ...
 3d 5b
 
@@ -268,7 +268,7 @@ Stream of `PlayerB`:
 Turno nero!
 E' il tuo turno.
 
-Inserisci la pedina che vui muovere e poi le mosse che vuio fare
+Inserisci la pedina che vuoi muovere e poi le mosse che vuoi fare
 Es > 6A 5B oppure 6A 4C 2A oppure 6A 4C 2A ...
 3d 5b 7d
 

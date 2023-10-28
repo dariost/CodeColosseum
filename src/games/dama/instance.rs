@@ -59,12 +59,12 @@ impl game::Instance for Instance {
         logic::stampa_damiera(damiera.clone(), &mut giocatore, &mut spectators).await;
 
         // Setto chi inizia a giocare
-        let mut turno_binaco: bool = true;
+        let mut turno_bianco: bool = true;
 
         // Creo il vettore che conterrà il percorso valido
         let mut percorso_valido: Vec<String> = Vec::new();
 
-        // Creao la stringa che conterrà la mossa da inviare all'avversario
+        // Creo la stringa che conterrà la mossa da inviare all'avversario
         let mut mossa: String = String::new();
 
         // Inizia sempre la partita il secondo giocatore che si connette
@@ -89,13 +89,13 @@ impl game::Instance for Instance {
             damiera.clone(),
             &mut giocatore,
             &mut spectators,
-            turno_binaco,
+            turno_bianco,
         )
         .await
         {
             let start = Instant::now();
 
-            if turno_binaco {
+            if turno_bianco {
                 // Bianchi
 
                 // Dico al giocatore cosa deve muovere
@@ -116,7 +116,7 @@ impl game::Instance for Instance {
 
                 // Controllo se c'è stato un abbandono della partita
                 if percorso_valido[0] == "Err" {
-                    _ = giocatore[1].output.write(("\nI binachi hanno abbandonato la partita.\nI neri vincono la partita!\n\n").as_bytes()).await;
+                    _ = giocatore[1].output.write(("\nI bianchi hanno abbandonato la partita.\nI neri vincono la partita!\n\n").as_bytes()).await;
                     break;
                 }
 
@@ -129,7 +129,7 @@ impl game::Instance for Instance {
                 lnout2!(giocatore[1].output, mossa.clone());
 
                 // Cambio il turno di gioco
-                turno_binaco = false;
+                turno_bianco = false;
             } else {
                 // Neri
 
@@ -161,7 +161,7 @@ impl game::Instance for Instance {
                 lnout2!(giocatore[0].output, mossa.clone());
 
                 // Cambio il turno di gioco
-                turno_binaco = true;
+                turno_bianco = true;
             }
 
             // Pulisco la variabile usata per passare la mossa all'avversario
