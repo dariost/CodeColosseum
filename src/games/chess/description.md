@@ -21,7 +21,7 @@ In chess there are 3 special moves which require some explanation:
 
 - **castle x1 x2 y1 y2**: It consists of moving the king two squares toward a rook on the same rank and then moving the rook to the square that the king passed over. Castling is permitted only if neither the king nor the rook has previously moved.
 - **enpassant x1 x2**: It describes the capture by a pawn of an enemy pawn on the same rank and an adjacent file that has just made an initial two-square advance.
-- **promotion x1 x2 pieceType**: It is the replacement of a pawn with a new piece when the pawn is moved to its last rank. The player replaces the pawn immediately with a queen, rook, bishop, or knight of the same color.
+- **promote x1 x2 pieceType**: It is the replacement of a pawn with a new piece when the pawn is moved to its last rank. The player replaces the pawn immediately with a queen, rook, bishop, or knight of the same color.
 
 
 
