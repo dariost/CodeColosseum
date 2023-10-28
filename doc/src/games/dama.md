@@ -1,0 +1,1 @@
+../../../src/games/dama/description.md
